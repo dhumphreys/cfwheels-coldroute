@@ -1,16 +1,17 @@
 <cfcomponent output="false">
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
-			this.version = "1.2";
+			this.version = "1.1";
 			application.wheels.coldRoute = CreateObject("component", "/plugins.coldroute.coldroute.ColdRoute").init();
 			return this;
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="draw" mixin="application" returntype="struct" access="public">
+	<cffunction name="drawRoutes" mixin="application" returntype="struct" access="public" hint="Start drawing routes">
 		<cfreturn application.wheels.coldRoute.draw() />
 	</cffunction>
 	
+	<!---
 	<cffunction name="$loadRoutes" mixin="application" returntype="void" access="public" output="false">
 		<cfscript>
 			var loc = {};
@@ -37,4 +38,5 @@
 			$setNamedRoutePositions();
 		</cfscript>
 	</cffunction>
+	--->
 </cfcomponent>

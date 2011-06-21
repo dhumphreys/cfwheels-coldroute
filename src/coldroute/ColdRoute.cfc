@@ -1,5 +1,5 @@
 <cfcomponent output="false">
-	<cfinclude template="/wheels/global/string.cfm" />
+	<cfinclude template="/wheels/global/public.cfm" />
 	
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
@@ -21,18 +21,18 @@
 			
 			// if last action was a resource, set up REST routes
 			if (scopeStack[1].$call EQ "resources") {
-				get(pattern="", action="index");
+				$get(pattern="", action="index");
 				post(pattern="", action="create");
-				get(pattern="new", action="new", name="new", $singular=true);
-				get(pattern="[key]/edit", action="edit", name="edit", $singular=true);
-				get(pattern="[key]", action="show", $singular=true);
+				$get(pattern="new", action="new", name="new", $singular=true);
+				$get(pattern="[key]/edit", action="edit", name="edit", $singular=true);
+				$get(pattern="[key]", action="show", $singular=true);
 				put(pattern="[key]", action="update", $singular=true);
 				delete(pattern="[key]", action="delete", $singular=true);
 			} else if (scopeStack[1].$call EQ "resource") {
 				post(pattern="", action="create");
-				get(pattern="new", action="new", name="new");
-				get(pattern="edit", action="edit", name="edit");
-				get(pattern="", action="show");
+				$get(pattern="new", action="new", name="new");
+				$get(pattern="edit", action="edit", name="edit");
+				$get(pattern="", action="show");
 				put(pattern="", action="update");
 				delete(pattern="", action="delete");
 			}
@@ -137,11 +137,13 @@
 			// put route arguments on structure
 			// TODO: handle optional arguments
 			ArrayAppend(variables.routes, arguments);
+			addRoute(argumentCollection=arguments);
 			return this;
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="get" returntype="struct" access="public" hint="Match a GET url">
+	<!--- todo: fix naming collision --->
+	<cffunction name="$get" returntype="struct" access="public" hint="Match a GET url">
 		<cfargument name="name" type="string" required="false" />
 		<cfreturn match(method="get", argumentCollection=arguments) />
 	</cffunction>
