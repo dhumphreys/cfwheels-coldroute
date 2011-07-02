@@ -2,15 +2,23 @@
 	<cfinclude template="/wheels/global/functions.cfm" />
 	
 	<cffunction name="init" returntype="struct" access="public">
+		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
+		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
 		<cfscript>
 			variables.scopeStack = [];
 			variables.routes = [];
+			variables.restful = arguments.restful;
+			variables.methods = arguments.restful OR arguments.methods;
 			return this;
 		</cfscript>
 	</cffunction>
 	
 	<cffunction name="draw" returntype="struct" access="public">
+		<cfargument name="restful" type="boolean" default="#variables.restful#" hint="Pass 'true' to enable RESTful routes" />
+		<cfargument name="methods" type="boolean" default="#variables.methods#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
 		<cfscript>
+			variables.restful = arguments.restful;
+			variables.methods = arguments.restful OR arguments.methods;
 			ArrayAppend(scopeStack, {$call="draw"});
 			return this;
 		</cfscript>
@@ -20,6 +28,7 @@
 		<cfscript>
 			
 			// if last action was a resource, set up REST routes
+			// TODO: consider non-restful routes
 			if (scopeStack[1].$call EQ "resources") {
 				$get(pattern="", action="index");
 				post(pattern="", action="create");
@@ -95,6 +104,10 @@
 				arguments.methods = arguments.method;
 				StructDelete(arguments, "method");
 			}
+			
+			// remove ''methods' argument if settings disable it
+			if (NOT variables.methods AND StructKeyExists(arguments, "methods"))
+				StructDelete(arguments, "methods");
 			
 			// add scoped path to pattern
 			if (StructKeyExists(arguments, "path")) {

@@ -8,7 +8,9 @@
 	</cffunction>
 	
 	<cffunction name="drawRoutes" mixin="application" returntype="struct" access="public" hint="Start drawing routes">
-		<cfreturn application.wheels.coldRoute.draw() />
+		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
+		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
+		<cfreturn application.wheels.coldRoute.draw(argumentCollection=arguments) />
 	</cffunction>
 	
 	<!---
