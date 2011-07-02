@@ -1,7 +1,7 @@
 <cfcomponent output="false">
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
-			this.version = "1.1";
+			this.version = "1.1,1.2";
 			application.wheels.coldRoute = CreateObject("component", "/plugins.coldroute.coldroute.ColdRoute").init();
 			return this;
 		</cfscript>

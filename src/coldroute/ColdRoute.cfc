@@ -1,5 +1,5 @@
 <cfcomponent output="false">
-	<cfinclude template="/wheels/global/public.cfm" />
+	<cfinclude template="/wheels/global/functions.cfm" />
 	
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
