@@ -246,7 +246,7 @@
 			
 			// if no controller is defined, assume the resource name
 			if (NOT StructKeyExists(arguments, "controller"))
-				arguments.controller = arguments.name;
+				arguments.controller = loc.entity;
 				
 			// set up mapping path 
 			loc.path = "/" & hyphenize(arguments.name);
