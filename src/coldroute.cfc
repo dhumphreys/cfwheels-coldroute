@@ -102,4 +102,67 @@
 		</cfscript>
 		<cfreturn loc.returnValue>
 	</cffunction>
+	
+	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public">
+		<cfscript>
+			var loc = {};
+			for (loc.key in application.wheels.namedRoutePositions)
+				variables[loc.key & "Path"] = variables[loc.key & "Url"] = $namedRouteMethod;
+		</cfscript>
+	</cffunction>
+	
+	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public">
+		<cfscript>
+			var loc = {};
+			loc.args = {};
+			loc.name = GetFunctionCalledName();
+			
+			// determine whether or not to use path
+			if (REFindNoCase("Path$", loc.name)) {
+				loc.name = REReplaceNoCase(loc.name, "^(.+)Path$", "\1");
+				loc.args.onlyPath = true;
+			} else if (REFindNoCase("Url$", loc.name)) {
+				loc.name = REReplaceNoCase(loc.name, "^(.+)Url$", "\1");
+				loc.args.onlyPath = false;
+			}
+			
+			// get the matching route and any required variables
+			loc.route = $findRoute(route=loc.name);
+			loc.vars = REMatch("\[([^\]]+)\]", loc.route.pattern);
+			
+			// loop over variables needed for route
+			loc.iEnd = ArrayLen(loc.vars);
+			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
+				loc.value = false;
+				loc.key = Mid(loc.vars[loc.i], 2, Len(loc.vars[loc.i]) - 2);
+				
+				// try to find the correct argument
+				if (StructKeyExists(arguments, loc.key))
+					loc.value = arguments[loc.key];
+				else if (StructKeyExists(arguments, loc.i))
+					loc.value = arguments[loc.i];
+					
+				// use the value if it is simple
+				if (IsSimpleValue(loc.value) AND loc.value NEQ false) {
+					loc.args[loc.key] = loc.value;
+				} else if (IsObject(loc.value)) {
+					
+					// if the passed in object is new, link to the plural REST route instead
+					if (loc.value.isNew()) {
+						if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(loc.name))) {
+							loc.name = pluralize(loc.name);
+							break;
+						}
+						
+					// otherwise, use the Model#toKey method
+					} else {
+						loc.args[loc.key] = loc.value.toKey();
+					}
+				}
+			}
+			
+			// return correct url with arguments set
+			return urlFor(route=loc.name, argumentCollection=loc.args);
+		</cfscript>
+	</cffunction>
 </cfcomponent>
