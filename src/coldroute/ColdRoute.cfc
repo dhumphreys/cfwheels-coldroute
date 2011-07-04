@@ -30,18 +30,18 @@
 			// if last action was a resource, set up REST routes
 			// TODO: consider non-restful routes
 			if (scopeStack[1].$call EQ "resources") {
-				$get(pattern="", action="index");
-				post(pattern="", action="create");
 				$get(pattern="new", action="new", name="new", $singular=true);
 				$get(pattern="[key]/edit", action="edit", name="edit", $singular=true);
 				$get(pattern="[key]", action="show", $singular=true);
 				put(pattern="[key]", action="update", $singular=true);
 				delete(pattern="[key]", action="delete", $singular=true);
-			} else if (scopeStack[1].$call EQ "resource") {
+				$get(pattern="", action="index");
 				post(pattern="", action="create");
+			} else if (scopeStack[1].$call EQ "resource") {
 				$get(pattern="new", action="new", name="new");
 				$get(pattern="edit", action="edit", name="edit");
 				$get(pattern="", action="show");
+				post(pattern="", action="create");
 				put(pattern="", action="update");
 				delete(pattern="", action="delete");
 			}
