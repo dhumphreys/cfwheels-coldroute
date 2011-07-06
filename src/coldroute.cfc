@@ -15,13 +15,9 @@
 	
 	<cffunction name="toKey" mixin="model" returntype="any" access="public" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
 		<cfscript>
-			var loc = {};
-			loc.key = "";
-			loc.primaryKeys = ListToArray(primaryKeys());
-			loc.iEnd = ArrayLen(loc.primaryKeys);
-			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++)
-				loc.key = ListAppend(loc.key, this[loc.primaryKeys[loc.i]]);
-			return loc.key;
+			
+			// call wheels key() method by default
+			return key();
 		</cfscript>
 	</cffunction>
 	
