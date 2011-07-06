@@ -5,10 +5,17 @@
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
 		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
 		<cfscript>
+			
+			// set up control variables
 			variables.scopeStack = [];
 			variables.routes = [];
 			variables.restful = arguments.restful;
 			variables.methods = arguments.restful OR arguments.methods;
+			
+			
+			// fix naming collision with cfwheels get() method
+			this.get = variables.get = variables.$get;
+			
 			return this;
 		</cfscript>
 	</cffunction>
@@ -155,7 +162,6 @@
 		</cfscript>
 	</cffunction>
 	
-	<!--- todo: fix naming collision --->
 	<cffunction name="$get" returntype="struct" access="public" hint="Match a GET url">
 		<cfargument name="name" type="string" required="false" />
 		<cfreturn match(method="get", argumentCollection=arguments) />
