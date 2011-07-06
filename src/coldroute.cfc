@@ -21,6 +21,34 @@
 		</cfscript>
 	</cffunction>
 	
+	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" hint="">
+		<cfscript>
+			
+			// look for passed in rest method
+			if (StructKeyExists(arguments, "method")) {
+				
+				// if dealing with delete, keep robots from following link
+				if (arguments.method EQ "delete") {
+					if (NOT StructKeyExists(arguments, "rel"))
+						arguments.rel = "";
+					arguments.rel = ListAppend(arguments.rel, "no-follow", " ");
+				}
+				
+				// put the method in a data attribute
+				arguments["data-method"] = arguments.method;
+				StructDelete(arguments, "method");
+			}
+			
+			// set confirmation text for link
+			if (StructKeyExists(arguments, "confirm")) {
+				arguments["data-confirm"] = arguments.confirm;
+				StructDelete(arguments, "confirm");
+			}
+			
+			return core.linkTo(argumentCollection=arguments);
+		</cfscript>
+	</cffunction>
+	
 	<cffunction name="$getRequestMethod" mixin="dispatch" returntype="string" access="public">
 		<cfscript>
 			var loc = {};
