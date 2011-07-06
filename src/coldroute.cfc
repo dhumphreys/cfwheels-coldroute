@@ -128,21 +128,20 @@
 	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public">
 		<cfscript>
 			var loc = {};
-			loc.args = {};
-			loc.name = GetFunctionCalledName();
 			
-			// determine whether or not to use path
-			if (REFindNoCase("Path$", loc.name)) {
-				loc.name = REReplaceNoCase(loc.name, "^(.+)Path$", "\1");
-				loc.args.onlyPath = true;
-			} else if (REFindNoCase("Url$", loc.name)) {
-				loc.name = REReplaceNoCase(loc.name, "^(.+)Url$", "\1");
-				loc.args.onlyPath = false;
+			// determine route name and path type
+			arguments.route = GetFunctionCalledName();
+			if (REFindNoCase("Path$", arguments.route)) {
+				arguments.route = REReplaceNoCase(arguments.route, "^(.+)Path$", "\1");
+				arguments.onlyPath = true;
+			} else if (REFindNoCase("Url$", arguments.route)) {
+				arguments.route = REReplaceNoCase(arguments.route, "^(.+)Url$", "\1");
+				arguments.onlyPath = false;
 			}
 			
 			// get the matching route and any required variables
-			if (StructKeyExists(application.wheels.namedRoutePositions, loc.name)) {
-				loc.routePos = application.wheels.namedRoutePositions[loc.name];
+			if (StructKeyExists(application.wheels.namedRoutePositions, arguments.route)) {
+				loc.routePos = application.wheels.namedRoutePositions[arguments.route];
 				
 				// todo: don't just accept the first route found
 				loc.route = application.wheels.routes[loc.routePos[1]];
@@ -155,33 +154,36 @@
 					loc.key = loc.vars[loc.i];
 					
 					// try to find the correct argument
-					if (StructKeyExists(arguments, loc.key))
+					if (StructKeyExists(arguments, loc.key)) {
 						loc.value = arguments[loc.key];
-					else if (StructKeyExists(arguments, loc.i))
+						StructDelete(arguments, loc.key);
+					} else if (StructKeyExists(arguments, loc.i)) {
 						loc.value = arguments[loc.i];
+						StructDelete(arguments, loc.i);
+					}
 						
 					// use the value if it is simple
 					if (IsSimpleValue(loc.value) AND loc.value NEQ false) {
-						loc.args[loc.key] = loc.value;
+						arguments[loc.key] = loc.value;
 					} else if (IsObject(loc.value)) {
 						
 						// if the passed in object is new, link to the plural REST route instead
 						if (loc.value.isNew()) {
-							if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(loc.name))) {
-								loc.name = pluralize(loc.name);
+							if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(arguments.route))) {
+								arguments.route = pluralize(arguments.route);
 								break;
 							}
 							
 						// otherwise, use the Model#toKey method
 						} else {
-							loc.args[loc.key] = loc.value.toKey();
+							arguments[loc.key] = loc.value.toKey();
 						}
 					}
 				}
 			}
 			
 			// return correct url with arguments set
-			return urlFor(route=loc.name, argumentCollection=loc.args);
+			return urlFor(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
 </cfcomponent>
