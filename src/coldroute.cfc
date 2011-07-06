@@ -1,7 +1,7 @@
 <cfcomponent output="false">
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
-			this.version = "1.1,1.2";
+			this.version = "1.1.1,1.1.2,1.1.3,1.2";
 			application.wheels.coldRoute = CreateObject("component", "/plugins.coldroute.coldroute.ColdRoute").init();
 			return this;
 		</cfscript>
@@ -140,7 +140,8 @@
 				loc.routePos = application.wheels.namedRoutePositions[arguments.route];
 				
 				// todo: don't just accept the first route found
-				loc.route = application.wheels.routes[loc.routePos[1]];
+				loc.pos = IsArray(loc.routePos) ? loc.routePos[1] : ListFirst(loc.routePos);
+				loc.route = application.wheels.routes[loc.pos];
 				loc.vars = ListToArray(loc.route.variables);
 			
 				// loop over variables needed for route
