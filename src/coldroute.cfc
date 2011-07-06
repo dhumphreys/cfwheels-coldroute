@@ -141,36 +141,41 @@
 			}
 			
 			// get the matching route and any required variables
-			loc.route = $findRoute(route=loc.name);
-			loc.vars = REMatch("\[([^\]]+)\]", loc.route.pattern);
-			
-			// loop over variables needed for route
-			loc.iEnd = ArrayLen(loc.vars);
-			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-				loc.value = false;
-				loc.key = Mid(loc.vars[loc.i], 2, Len(loc.vars[loc.i]) - 2);
+			if (StructKeyExists(application.wheels.namedRoutePositions, loc.name)) {
+				loc.routePos = application.wheels.namedRoutePositions[loc.name];
 				
-				// try to find the correct argument
-				if (StructKeyExists(arguments, loc.key))
-					loc.value = arguments[loc.key];
-				else if (StructKeyExists(arguments, loc.i))
-					loc.value = arguments[loc.i];
+				// todo: don't just accept the first route found
+				loc.route = application.wheels.routes[loc.routePos[1]];
+				loc.vars = ListToArray(loc.route.variables);
+			
+				// loop over variables needed for route
+				loc.iEnd = ArrayLen(loc.vars);
+				for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
+					loc.value = false;
+					loc.key = loc.vars[loc.i];
 					
-				// use the value if it is simple
-				if (IsSimpleValue(loc.value) AND loc.value NEQ false) {
-					loc.args[loc.key] = loc.value;
-				} else if (IsObject(loc.value)) {
-					
-					// if the passed in object is new, link to the plural REST route instead
-					if (loc.value.isNew()) {
-						if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(loc.name))) {
-							loc.name = pluralize(loc.name);
-							break;
-						}
+					// try to find the correct argument
+					if (StructKeyExists(arguments, loc.key))
+						loc.value = arguments[loc.key];
+					else if (StructKeyExists(arguments, loc.i))
+						loc.value = arguments[loc.i];
 						
-					// otherwise, use the Model#toKey method
-					} else {
-						loc.args[loc.key] = loc.value.toKey();
+					// use the value if it is simple
+					if (IsSimpleValue(loc.value) AND loc.value NEQ false) {
+						loc.args[loc.key] = loc.value;
+					} else if (IsObject(loc.value)) {
+						
+						// if the passed in object is new, link to the plural REST route instead
+						if (loc.value.isNew()) {
+							if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(loc.name))) {
+								loc.name = pluralize(loc.name);
+								break;
+							}
+							
+						// otherwise, use the Model#toKey method
+						} else {
+							loc.args[loc.key] = loc.value.toKey();
+						}
 					}
 				}
 			}
