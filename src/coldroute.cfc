@@ -103,6 +103,20 @@
 		<cfreturn loc.returnValue>
 	</cffunction>
 	
+	<cffunction name="$initControllerClass" returntype="any" access="public" output="false">
+		<cfargument name="name" type="string" required="false" default="">
+		<cfscript>
+			
+			// call core init method
+			core.$initControllerClass(argumentCollection=arguments);
+			
+			// set up filter to create named route methods
+			filters(through="$registerNamedRouteMethods");
+			
+			return this;
+		</cfscript>
+	</cffunction>
+	
 	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public">
 		<cfscript>
 			var loc = {};
