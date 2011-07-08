@@ -82,6 +82,11 @@
 			// pull arguments from scope stack
 			StructAppend(arguments, scopeStack[1], false);
 			
+			// get control variables
+			loc.hasScopeName = StructKeyExists(arguments, "scopeName");
+			loc.hasModule = StructKeyExists(arguments, "module");
+			loc.hasResource = StructKeyExists(arguments, "resource");
+			
 			// interpret 'to' as 'controller#action'
 			if (StructKeyExists(arguments, "to")) {
 				arguments.controller = ListFirst(arguments.to, "##");
@@ -128,10 +133,10 @@
 			arguments.pattern = REReplace(arguments.pattern, "^([^/]+)", "/\1");
 			
 			// process module namespace
-			if (StructKeyExists(arguments, "module")) {
+			if (loc.hasModule) {
 				
 				// append module to route name
-				if (loc.name NEQ "" OR StructKeyExists(arguments, "resource"))
+				if (loc.name NEQ "" OR loc.hasResource)
 					loc.name = ListAppend(loc.name, Replace(arguments.module, ".", ",", "ALL"));
 				
 				// append to controller or leave module variable set
@@ -142,7 +147,7 @@
 			}
 			
 			// if we are using resources, use their names in the route name
-			if (StructKeyExists(arguments, "resource")) {
+			if (loc.hasResource) {
 				loc.name = ListAppend(loc.name, arguments.resource);
 				if (arguments.$singular) {
 					loc.entity = ListLast(loc.name);
@@ -150,9 +155,12 @@
 				}
 			}
 				
-			// if we have a name, add it to arguments
-			if (loc.name NEQ "")
+			// if we have a name, append scoped name, and add it to arguments
+			if (loc.name NEQ "") {
+				if (loc.hasScopeName)
+					loc.name &= capitalize(arguments.scopeName);
 				arguments.name = REReplace(loc.name, ",(\w)", "\U\1", "ALL");
+			}
 			
 			// put route arguments on structure
 			// TODO: handle optional arguments
@@ -207,6 +215,7 @@
 	-------------->
 	
 	<cffunction name="scope" returntype="struct" access="public" hint="Set certain parameters for future calls">
+		<cfargument name="name" type="string" required="false" />
 		<cfargument name="path" type="string" required="false" />
 		<cfargument name="module" type="string" required="false" />
 		<cfargument name="resource" type="string" required="false" />
@@ -220,6 +229,12 @@
 			// combine module with scope module
 			if (StructKeyExists(scopeStack[1], "module") AND StructKeyExists(arguments, "module"))
 				arguments.module = scopeStack[1].module & "." & arguments.module;
+				
+			// set scoped name
+			if (StructKeyExists(arguments, "name")) {
+				arguments.scopeName = arguments.name;
+				StructDelete(arguments, "name");
+			}
 			
 			// put scope arguments on the 
 			StructAppend(arguments, scopeStack[1], false);
