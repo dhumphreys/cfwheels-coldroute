@@ -127,6 +127,20 @@
 		<cfreturn loc.returnValue>
 	</cffunction>
 	
+	<cffunction name="$getPathFromRequest" returntype="string" access="public" output="false">
+		<cfargument name="pathInfo" type="string" required="true">
+		<cfargument name="scriptName" type="string" required="true">
+		<cfscript>
+			var returnValue = "";
+			// we want the path without the leading "/" so this is why we do some checking here
+			if (arguments.pathInfo == arguments.scriptName || arguments.pathInfo == "/" || arguments.pathInfo == "")
+				returnValue = "";
+			else
+				returnValue = Right(arguments.pathInfo, Len(arguments.pathInfo)-1);
+		</cfscript>
+		<cfreturn returnValue>
+	</cffunction>
+	
 	<cffunction name="$initControllerClass" returntype="any" access="public" output="false">
 		<cfargument name="name" type="string" required="false" default="">
 		<cfscript>
