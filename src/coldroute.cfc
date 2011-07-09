@@ -91,7 +91,7 @@
 				} else {
 					loc.match = {method = false, variables = true};
 
-					if (ListLen(arguments.path, "/") gte ListLen(loc.currentRoute, "/") && loc.currentRoute != "") {
+					if (ListLen(arguments.path, "/") EQ ListLen(loc.currentRoute, "/") && loc.currentRoute != "") {
 						
 						// check for matching variables
 						loc.jEnd = ListLen(loc.currentRoute, "/");
