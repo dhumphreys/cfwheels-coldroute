@@ -21,7 +21,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" hint="">
+	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" hint="Allow data-method and data-confirm on links">
 		<cfscript>
 			
 			// look for passed in rest method
@@ -49,7 +49,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" hint="Set">
+	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" hint="Look up actual route paths instead of providing default Wheels path generation">
 		<cfscript>
 			var loc = {};
 			
@@ -97,7 +97,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="$getRequestMethod" mixin="dispatch" returntype="string" access="public">
+	<cffunction name="$getRequestMethod" mixin="dispatch" returntype="string" access="public" hint="Determine HTTP verb used in request">
 		<cfscript>
 			var loc = {};
 			if (cgi.request_method EQ "post") {
@@ -114,7 +114,7 @@
 	</cffunction>
 
 	<!--- logic from restful-routes plugin by James Gibson --->
-	<cffunction name="$findMatchingRoute" mixin="dispatch" returntype="struct" access="public" output="false">
+	<cffunction name="$findMatchingRoute" mixin="dispatch" returntype="struct" access="public" hint="Help Wheels match routes using path and HTTP method">
 		<cfargument name="path" type="string" required="true">
 		<cfscript>
 			var loc = {};
@@ -175,7 +175,8 @@
 		<cfreturn loc.returnValue>
 	</cffunction>
 	
-	<cffunction name="$getPathFromRequest" returntype="string" access="public" output="false">
+	<!--- TODO: patch this in wheels code --->
+	<cffunction name="$getPathFromRequest" returntype="string" access="public" hint="Don't split incoming paths at `.` like Wheels does">
 		<cfargument name="pathInfo" type="string" required="true">
 		<cfargument name="scriptName" type="string" required="true">
 		<cfscript>
@@ -189,21 +190,16 @@
 		<cfreturn returnValue>
 	</cffunction>
 	
-	<cffunction name="$initControllerClass" returntype="any" access="public" output="false">
+	<cffunction name="$initControllerClass" mixin="controller" returntype="any" access="public" hint="Automatically call filter to create named route methods">
 		<cfargument name="name" type="string" required="false" default="">
 		<cfscript>
-			
-			// call core init method
 			core.$initControllerClass(argumentCollection=arguments);
-			
-			// set up filter to create named route methods
 			filters(through="$registerNamedRouteMethods");
-			
 			return this;
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public">
+	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public" hint="Filter that sets up named route helper methods">
 		<cfscript>
 			var loc = {};
 			for (loc.key in application.wheels.namedRoutePositions)
@@ -211,7 +207,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public">
+	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public" hint="Body of all named route helper methods">
 		<cfscript>
 			var loc = {};
 			
