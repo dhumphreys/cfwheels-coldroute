@@ -53,7 +53,7 @@
 		<cfscript>
 			var loc = {};
 			if (cgi.request_method EQ "post") {
-				loc.method = StructKeyExists(form, "_method") ? form["_method"] : StructKeyExists(url, "_method") ? url["_method"] : "";
+				loc.method = StructKeyExists(form, "_method") ? form["_method"] : "";
 				switch (loc.method) {
 					case "put": return "put"; break;
 					case "delete": return "delete"; break;
