@@ -337,11 +337,8 @@
 	</cffunction>
 	
 	<cffunction name="collection" returntype="struct" access="public" hint="Apply routes to resource collection">
-		<cfargument name="$call" type="string" default="collection" />
 		<cfscript>
-			StructAppend(arguments, scopeStack[1], false);
-			ArrayPrepend(scopeStack, arguments);
-			return this;
+			return scope($call="collection");
 		</cfscript>
 	</cffunction>
 </cfcomponent>
