@@ -3,6 +3,7 @@
 <style>
 	div.scroll-box {
 		overflow: scroll;
+		height: 600px;
 	}
 	
 	table#route-dump {

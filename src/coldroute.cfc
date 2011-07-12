@@ -7,13 +7,13 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="drawRoutes" mixin="application" returntype="struct" access="public" hint="Start drawing routes">
+	<cffunction name="drawRoutes" mixin="application" returntype="struct" output="false" access="public" hint="Start drawing routes">
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
 		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
 		<cfreturn application.wheels.coldRoute.draw(argumentCollection=arguments) />
 	</cffunction>
 	
-	<cffunction name="toKey" mixin="model" returntype="any" access="public" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
+	<cffunction name="toKey" mixin="model" returntype="any" access="public" output="false" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
 		<cfscript>
 			
 			// call wheels key() method by default
@@ -21,7 +21,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" hint="Allow data-method and data-confirm on links">
+	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" output="false" hint="Allow data-method and data-confirm on links">
 		<cfscript>
 			
 			// look for passed in rest method
@@ -49,7 +49,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" hint="Look up actual route paths instead of providing default Wheels path generation">
+	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" output="false" hint="Look up actual route paths instead of providing default Wheels path generation">
 		<cfscript>
 			var loc = {};
 			
@@ -207,7 +207,7 @@
 		</cfscript>
 	</cffunction>
 	
-	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public" hint="Body of all named route helper methods">
+	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public" output="false" hint="Body of all named route helper methods">
 		<cfscript>
 			var loc = {};
 			
