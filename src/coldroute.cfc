@@ -49,6 +49,54 @@
 		</cfscript>
 	</cffunction>
 	
+	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" hint="Set">
+		<cfscript>
+			var loc = {};
+			
+			// try looking up exact route if controller and action are set
+			if ((NOT StructKeyExists(arguments, "route") OR arguments.route EQ "") AND StructKeyExists(arguments, "action")) {
+				
+				// fill in controller if it is not set
+				if (NOT StructKeyExists(arguments, "controller") OR arguments.controller EQ "")
+					arguments.controller = variables.params.controller;
+				
+				// determine key and look up cache structure
+				loc.key = arguments.controller & "##" & arguments.action;
+				loc.cache = $urlForCache();
+				
+				// if route has already been found, just use it
+				if (StructKeyExists(loc.cache, loc.key)) {
+					arguments.route = loc.cache[loc.key];
+					
+				} else {
+					
+					// loop over routes to find matching one
+					loc.iEnd = ArrayLen(application.wheels.routes);
+					for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
+						loc.curr = application.wheels.routes[loc.i];
+						
+						// if found, cache the route name, set up arguments, and break from loop
+						if (loc.curr.controller EQ arguments.controller AND loc.curr.action EQ arguments.action) {
+							arguments.route = loc.cache[loc.key] = application.wheels.routes[loc.i].name;
+							break;
+						}
+					}
+				}
+			}
+			
+			// call core method
+			return core.urlFor(argumentCollection=arguments);
+		</cfscript>
+	</cffunction>
+	
+	<cffunction name="$urlForCache" mixin="global" returntype="struct" access="public" hint="Lazy-create a request-level cache for found routes">
+		<cfscript>
+			if (NOT StructKeyExists(request.wheels, "urlForCache"))
+				request.wheels.urlForCache = {};
+			return request.wheels.urlForCache;
+		</cfscript>
+	</cffunction>
+	
 	<cffunction name="$getRequestMethod" mixin="dispatch" returntype="string" access="public">
 		<cfscript>
 			var loc = {};
