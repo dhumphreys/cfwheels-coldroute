@@ -37,13 +37,19 @@
 			// if last action was a resource, set up REST routes
 			// TODO: consider non-restful routes
 			if (scopeStack[1].$call EQ "resources") {
-				$get(pattern="new", action="new", name="new", $singular=true);
-				$get(pattern="[key]/edit", action="edit", name="edit", $singular=true);
-				$get(pattern="[key]", action="show", $singular=true);
-				put(pattern="[key]", action="update", $singular=true);
-				delete(pattern="[key]", action="delete", $singular=true);
-				$get(pattern="", action="index");
-				post(pattern="", action="create");
+				collection();
+					$get(pattern="", action="index");
+					post(pattern="", action="create");
+				end();
+				scope($call="new");
+					$get(pattern="new", action="new", name="new");
+				end();
+				member();
+					$get(pattern="edit", action="edit", name="edit");
+					$get(pattern="", action="show");
+					put(pattern="", action="update");
+					delete(pattern="", action="delete");
+				end();
 			} else if (scopeStack[1].$call EQ "resource") {
 				$get(pattern="new", action="new", name="new");
 				$get(pattern="edit", action="edit", name="edit");
@@ -75,12 +81,14 @@
 		<cfargument name="to" type="string" required="false" />
 		<cfargument name="methods" type="string" required="false" />
 		<cfargument name="module" type="string" required="false" />
-		<cfargument name="$singular" type="boolean" default="false" />
 		<cfscript>
 			var loc = {};
 			
 			// pull arguments from scope stack
 			StructAppend(arguments, scopeStack[1], false);
+			
+			// named route variables
+			loc.scopeName = loc.memberName = loc.collectionName = loc.name = "";
 			
 			// get control variables
 			loc.hasScopeName = StructKeyExists(arguments, "scopeName");
@@ -135,10 +143,6 @@
 			// process module namespace
 			if (loc.hasModule) {
 				
-				// append module to route name
-				if (loc.name NEQ "" OR loc.hasResource)
-					loc.name = ListAppend(loc.name, Replace(arguments.module, ".", ",", "ALL"));
-				
 				// append to controller or leave module variable set
 				if (StructKeyExists(arguments, "controller")) {
 					arguments.controller = arguments.module & "." & arguments.controller;
@@ -148,19 +152,38 @@
 			
 			// if we are using resources, use their names in the route name
 			if (loc.hasResource) {
-				loc.name = ListAppend(loc.name, arguments.resource);
-				if (arguments.$singular) {
-					loc.entity = ListLast(loc.name);
-					loc.name = REREplace(loc.name, "#loc.entity#$", singularize(loc.entity));
-				}
+				loc.collectionName = arguments.resource;
+				loc.memberName = singularize(arguments.resource);
 			}
+			
+			// use scoped name if it is set
+			if (loc.hasScopeName)
+				loc.scopeName = arguments.scopeName;
+			
+			// build named routes in correct order according to rails conventions
+			switch (scopeStack[1].$call) {
+				case "resource":
+				case "resources":
+				case "collection":
+					loc.nameStruct = [loc.name, loc.scopeName, loc.collectionName];
+					break;
+				case "member":
+				case "new":
+					loc.nameStruct = [loc.name, loc.scopeName, loc.memberName];
+					break;
+				default:
+					loc.nameStruct = [loc.scopeName, loc.collectionName, loc.name];
+			}
+			
+			// transform array into named route
+			loc.name = ArrayToList(loc.nameStruct);
+			loc.name = REReplace(loc.name, "^,+|,+$", "", "ALL");
+			loc.name = REReplace(loc.name, ",+(\w)", "\U\1", "ALL");
+			loc.name = REReplace(loc.name, ",", "", "ALL");
 				
-			// if we have a name, append scoped name, and add it to arguments
-			if (loc.name NEQ "") {
-				if (loc.hasScopeName)
-					loc.name &= capitalize(arguments.scopeName);
-				arguments.name = REReplace(loc.name, ",(\w)", "\U\1", "ALL");
-			}
+			// if we have a name, add it to arguments
+			if (loc.name NEQ "")
+				arguments.name = loc.name;
 			
 			// put route arguments on structure
 			// TODO: handle optional arguments
@@ -230,13 +253,16 @@
 			if (StructKeyExists(scopeStack[1], "module") AND StructKeyExists(arguments, "module"))
 				arguments.module = scopeStack[1].module & "." & arguments.module;
 				
-			// set scoped name
+			// append to scoped name
 			if (StructKeyExists(arguments, "name")) {
-				arguments.scopeName = arguments.name;
+				if (StructKeyExists(scopeStack[1], "scopeName"))
+					arguments.scopeName = scopeStack[1].scopeName & capitalize(arguments.name);
+				else
+					arguments.scopeName = arguments.name;
 				StructDelete(arguments, "name");
 			}
 			
-			// put scope arguments on the 
+			// put scope arguments on the stack
 			StructAppend(arguments, scopeStack[1], false);
 			ArrayPrepend(scopeStack, arguments);
 			return this;
@@ -246,7 +272,7 @@
 	<cffunction name="namespace" returntype="struct" access="public" hint="Set up namespace for future calls">
 		<cfargument name="name" type="string" required="true" />
 		<cfscript>
-			return scope(path="/#hyphenize(arguments.name)#", module=arguments.name, $call="namespace");
+			return scope(path="/#hyphenize(arguments.name)#", module=arguments.name, name=arguments.name, $call="namespace");
 		</cfscript>
 	</cffunction>
 	
