@@ -211,6 +211,9 @@
 		<cfscript>
 			var loc = {};
 			
+			// FIX: numbered arguments with StructDelete() are breaking in CF 9.0.1, this hack fixes it
+			arguments = Duplicate(arguments);
+			
 			// determine route name and path type
 			arguments.route = GetFunctionCalledName();
 			if (REFindNoCase("Path$", arguments.route)) {
