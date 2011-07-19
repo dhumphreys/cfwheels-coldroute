@@ -45,6 +45,12 @@
 				StructDelete(arguments, "confirm");
 			}
 			
+			// set up remote links
+			if (StructKeyExists(arguments, "remote")) {
+				arguments["data-remote"] = arguments.remote;
+				StructDelete(arguments, "remote");
+			}
+			
 			return core.linkTo(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
