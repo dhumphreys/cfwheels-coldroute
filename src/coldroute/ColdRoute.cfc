@@ -13,8 +13,9 @@
 			variables.methods = arguments.restful OR arguments.methods;
 			
 			
-			// fix naming collision with cfwheels get() method
+			// fix naming collision with cfwheels get() and controller() methods
 			this.get = variables.get = variables.$get;
+			this.controller = variables.controller = variables.$controller;
 			
 			return this;
 		</cfscript>
@@ -270,9 +271,20 @@
 	</cffunction>
 	
 	<cffunction name="namespace" returntype="struct" access="public" hint="Set up namespace for future calls">
-		<cfargument name="name" type="string" required="true" />
+		<cfargument name="module" type="string" required="true" />
+		<cfargument name="name" type="string" default="#arguments.module#" />
+		<cfargument name="path" type="string" default="#hyphenize(arguments.module)#" />
 		<cfscript>
-			return scope(path="/#hyphenize(arguments.name)#", module=arguments.name, name=arguments.name, $call="namespace");
+			return scope(argumentCollection=arguments, $call="namespace");
+		</cfscript>
+	</cffunction>
+	
+	<cffunction name="$controller" returntype="struct" access="public" hint="Set up controller for future calls">
+		<cfargument name="controller" type="string" required="true" />
+		<cfargument name="name" type="string" default="#arguments.controller#" />
+		<cfargument name="path" type="string" default="#hyphenize(arguments.controller)#" />
+		<cfscript>
+			return scope(argumentCollection=arguments, $call="controller");
 		</cfscript>
 	</cffunction>
 	
