@@ -23,6 +23,7 @@
 	
 	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" output="false" hint="Allow data-method and data-confirm on links">
 		<cfscript>
+			var loc = {};
 			
 			// look for passed in rest method
 			if (StructKeyExists(arguments, "method")) {
@@ -49,6 +50,14 @@
 			if (StructKeyExists(arguments, "remote")) {
 				arguments["data-remote"] = arguments.remote;
 				StructDelete(arguments, "remote");
+			}
+			
+			// hyphenize any other data attributes
+			for (loc.key in arguments) {
+				if (REFind("^data[A-Z]", loc.key)) {
+					arguments[hyphenize(loc.key)] = arguments[loc.key];
+					StructDelete(arguments, loc.key);
+				}
 			}
 			
 			return core.linkTo(argumentCollection=arguments);
