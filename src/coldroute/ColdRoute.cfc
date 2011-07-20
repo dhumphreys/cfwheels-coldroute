@@ -153,8 +153,8 @@
 			
 			// if we are using resources, use their names in the route name
 			if (loc.hasResource) {
-				loc.collectionName = arguments.resource;
-				loc.memberName = singularize(arguments.resource);
+				loc.collectionName = arguments.collection;
+				loc.memberName = arguments.member;
 			}
 			
 			// use scoped name if it is set
@@ -297,40 +297,36 @@
 		<cfargument name="nested" type="boolean" default="false" />
 		<cfargument name="$plural" type="boolean" default="false" />
 		<cfargument name="$call" type="string" default="resource" />
+		<cfargument name="member" type="string" default="#arguments.$plural ? singularize(arguments.name) : arguments.name#" />
+		<cfargument name="collection" type="string" default="#arguments.name#" />
+		<cfargument name="controller" type="string" default="#arguments.member#" />
 		<cfscript>
 			var loc = {};
-			
-			// determine entity name
-			loc.entity = arguments.$plural ? singularize(arguments.name) : arguments.name;
-			
-			// if no controller is defined, assume the resource name
-			if (NOT StructKeyExists(arguments, "controller"))
-				arguments.controller = loc.entity;
+			loc.nested = arguments.nested;
 				
 			// set up mapping path 
-			loc.path = "/" & hyphenize(arguments.name);
-			loc.resource = arguments.name;
+			arguments.path = hyphenize(arguments.name);
+			arguments.resource = arguments.member;
 			
-			// if we are already under a resource
+			// if we are already under a resource, prepend proper parent member names
 			if (StructKeyExists(scopeStack[1], "resource")) {
+				arguments.member = scopeStack[1].member & capitalize(arguments.member);
+				arguments.collection = scopeStack[1].member & capitalize(arguments.collection);
 				
-				// figure out last resource name and append current resource
-				loc.lastResource = singularize(ListLast(scopeStack[1].resource));
-				loc.origResource = REReplace(scopeStack[1].resource, ListLast(scopeStack[1].resource) & "$", loc.lastResource);
-				loc.resource = ListAppend(loc.origResource, loc.resource);
-				
-				// if dealing with a plural resource, include its key
+				// if dealing with a plural parent resource, include its key in the path
 				if (scopeStack[1].$call EQ "resources")
-					loc.path = "/[" & loc.lastResource & "Key]" & loc.path;
+					arguments.path = "[#scopeStack[1].resource#Key]/#arguments.path#";
 			}
 			
 			// scope using the resource name as the path
-			scope(path=loc.path, controller=arguments.controller, resource=loc.resource, $call=arguments.$call);
-			
-			// NOTE: see 'end()' to see the routing logic for resources
+			StructDelete(arguments, "name");
+			StructDelete(arguments, "nested");
+			StructDelete(arguments, "$plural");
+			scope(argumentCollection=arguments);
 				
 			// call end() automatically unless this is a nested call
-			return arguments.nested ? this : end();
+			// NOTE: see 'end()' source for the resource routes logic
+			return loc.nested ? this : end();
 		</cfscript>
 	</cffunction>
 	
