@@ -8,10 +8,8 @@
 			
 			// set up control variables
 			variables.scopeStack = [];
-			variables.routes = [];
 			variables.restful = arguments.restful;
 			variables.methods = arguments.restful OR arguments.methods;
-			
 			
 			// fix naming collision with cfwheels get() and controller() methods
 			this.get = variables.get = variables.$get;
@@ -63,12 +61,6 @@
 			// remove top of stack to end nesting
 			ArrayDeleteAt(scopeStack, 1);
 			return this;
-		</cfscript>
-	</cffunction>
-	
-	<cffunction name="routes" returntype="array" access="public">
-		<cfscript>
-			return variables.routes;
 		</cfscript>
 	</cffunction>
 	
@@ -186,10 +178,10 @@
 			if (loc.name NEQ "")
 				arguments.name = loc.name;
 			
-			// put route arguments on structure
 			// TODO: handle optional arguments
-			ArrayAppend(variables.routes, arguments);
+			// add routes to wheels
 			addRoute(argumentCollection=arguments);
+			
 			return this;
 		</cfscript>
 	</cffunction>
