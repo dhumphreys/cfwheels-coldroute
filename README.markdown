@@ -8,6 +8,8 @@ To bring Rails 3 route features and syntax to CFWheels, making namespaces and re
 
 Just download the latest ```.zip``` file from the __Downloads__ section of the project. Copy this file into the ```/plugins``` directory of your CFWheels project and reload your application.
 
+__Note:__ I have just posted the latest ```.zip``` file for the plugin. I am making no guarantees on the stability of the code. Also, none of the ```namespace()``` features will work until I submit a patch to CFWheels to enabled complex controller paths.
+
 ## Basics
 
 ColdRoute enables scopes, namespaces, and resources in your routes.

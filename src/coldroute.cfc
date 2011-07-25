@@ -13,7 +13,7 @@
 		<cfreturn application.wheels.coldRoute.draw(argumentCollection=arguments) />
 	</cffunction>
 	
-	<cffunction name="toKey" mixin="model" returntype="any" access="public" output="false" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
+	<cffunction name="toParam" mixin="model" returntype="any" access="public" output="false" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
 		<cfscript>
 			
 			// call wheels key() method by default
@@ -275,9 +275,9 @@
 								break;
 							}
 							
-						// otherwise, use the Model#toKey method
+						// otherwise, use the Model#toParam method
 						} else {
-							arguments[loc.key] = loc.value.toKey();
+							arguments[loc.key] = loc.value.toParam();
 						}
 					}
 				}
