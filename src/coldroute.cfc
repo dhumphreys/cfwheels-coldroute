@@ -130,39 +130,50 @@
 
 	<!--- logic from restful-routes plugin by James Gibson --->
 	<cffunction name="$findMatchingRoute" mixin="dispatch" returntype="struct" access="public" hint="Help Wheels match routes using path and HTTP method">
-		<cfargument name="path" type="string" required="true">
+		<cfargument name="path" type="string" required="true" />
 		<cfscript>
 			var loc = {};
+			
+			// get HTTP verb used in request
 			loc.requestMethod = $getRequestMethod();
 
+			// loop over wheels routes
 			loc.iEnd = ArrayLen(application.wheels.routes);
 			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
 				loc.format = false;
+				
+				// check for a supplied format parameter
 				if (StructKeyExists(application.wheels.routes[loc.i], "format"))
 					loc.format = application.wheels.routes[loc.i].format;
 
+				// grab the current route's pattern
 				loc.routeStruct = application.wheels.routes[loc.i];
 				loc.currentRoute = application.wheels.routes[loc.i].pattern;
 
-				// still make sure we have the right length route
-				if (loc.currentRoute == "*") {
+				// if route pattern is a star, match found
+				if (loc.currentRoute EQ "*") {
 					loc.returnValue = application.wheels.routes[loc.i];
 					break;
-				} else if (arguments.path == "" && loc.currentRoute == "") {
+					
+				// if route pattern and path are both 
+				} else if (arguments.path EQ "" AND loc.currentRoute EQ "") {
 					loc.returnValue = application.wheels.routes[loc.i];
 					break;
+					
 				} else {
-					loc.match = {method = false, variables = true};
+					
+					// set up conditions to be met
+					loc.match = {method=false, variables=false};
 
-					if (ListLen(arguments.path, "/") EQ ListLen(loc.currentRoute, "/") && loc.currentRoute != "") {
+					if (ListLen(arguments.path, "/") EQ ListLen(loc.currentRoute, "/") AND loc.currentRoute NEQ "") {
 						
 						// check for matching variables
 						loc.jEnd = ListLen(loc.currentRoute, "/");
-						for (loc.j=1; loc.j <= loc.jEnd; loc.j++) {
+						for (loc.j = 1; loc.j LTE loc.jEnd; loc.j++) {
 							loc.item = ListGetAt(loc.currentRoute, loc.j, "/");
 							loc.thisRoute = ReplaceList(loc.item, "[,]", ",");
 							loc.thisURL = ListGetAt(arguments.path, loc.j, "/");
-							if (Left(loc.item, 1) != "[" && loc.thisRoute != loc.thisURL)
+							if (Left(loc.item, 1) NEQ "[" AND loc.thisRoute NEQ loc.thisURL)
 								loc.match.variables = false;
 						}
 
@@ -170,12 +181,16 @@
 						if (StructKeyExists(loc.routeStruct, "methods")){
 							if (ListFind(loc.routeStruct.methods, loc.requestMethod))
 								loc.match.method = true;
+							
 						} else {
 							// assume that the method is correct if not provided
 							loc.match.method = true;
 						}
 
+						// if both method and variables match
 						if (loc.match.method AND loc.match.variables) {
+							
+							// set route to be returned
 							loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
 							if (Len($getFormatFromRequest(pathInfo=arguments.path)) AND NOT IsBoolean(loc.format))
 								loc.returnValue[ReplaceList(loc.format, "[,]", "")] = $getFormatFromRequest(pathInfo=arguments.path);
@@ -184,10 +199,12 @@
 					}
 				}
 			}
+			
+			// throw error if not route was found
 			if (NOT StructKeyExists(loc, "returnValue"))
 				$throw(type="Wheels.RouteNotFound", message="Wheels couldn't find a route that matched this request.", extendedInfo="Make sure there is a route setup in your 'config/routes.cfm' file that matches the '#arguments.path#' request.");
 		</cfscript>
-		<cfreturn loc.returnValue>
+		<cfreturn loc.returnValue />
 	</cffunction>
 	
 	<!--- TODO: patch this in wheels code --->
