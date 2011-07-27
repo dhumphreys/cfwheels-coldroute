@@ -25,7 +25,11 @@
 		<cfscript>
 			variables.restful = arguments.restful;
 			variables.methods = arguments.restful OR arguments.methods;
-			ArrayAppend(scopeStack, {$call="draw"});
+			
+			// start with clean scope stack
+			// TODO: resolve any race conditions
+			variables.scopeStack = [];
+			ArrayPrepend(scopeStack, {$call="draw"});
 			return this;
 		</cfscript>
 	</cffunction>
