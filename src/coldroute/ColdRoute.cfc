@@ -7,13 +7,13 @@
 		<cfscript>
 			
 			// set up control variables
-			variables.scopeStack = [];
+			variables.scopeStack = ArrayNew(1);
 			variables.restful = arguments.restful;
 			variables.methods = arguments.restful OR arguments.methods;
 			
 			// fix naming collision with cfwheels get() and controller() methods
-			this.get = variables.get = variables.$get;
-			this.controller = variables.controller = variables.$controller;
+			this.get = variables.$get;
+			this.controller = variables.$controller;
 			
 			return this;
 		</cfscript>
@@ -28,8 +28,10 @@
 			
 			// start with clean scope stack
 			// TODO: resolve any race conditions
-			variables.scopeStack = [];
-			ArrayPrepend(scopeStack, {$call="draw"});
+			variables.scopeStack = ArrayNew(1);
+			ArrayPrepend(scopeStack, StructNew());
+			variables.scopeStack[1].$call = "draw";
+			
 			return this;
 		</cfscript>
 	</cffunction>
@@ -84,8 +86,11 @@
 			// pull arguments from scope stack
 			StructAppend(arguments, scopeStack[1], false);
 			
-			// named route variables
-			loc.scopeName = loc.memberName = loc.collectionName = loc.name = "";
+			// named route variables (initially empty)
+			loc.scopeName = "";
+			loc.memberName = "";
+			loc.collectionName = "";
+			loc.name = "";
 			
 			// get control variables
 			loc.hasScopeName = StructKeyExists(arguments, "scopeName");

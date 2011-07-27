@@ -92,7 +92,8 @@
 						
 						// if found, cache the route name, set up arguments, and break from loop
 						if (loc.curr.controller EQ arguments.controller AND loc.curr.action EQ arguments.action) {
-							arguments.route = loc.cache[loc.key] = application.wheels.routes[loc.i].name;
+							arguments.route = application.wheels.routes[loc.i].name;
+							loc.cache[loc.key] = arguments.route;
 							break;
 						}
 					}
@@ -158,7 +159,8 @@
 				} else {
 					
 					// set up conditions to be met
-					loc.match = {method=false, variables=false};
+					loc.matchMethod = false;
+					loc.matchVariables = false;
 
 					if (ListLen(arguments.path, "/") EQ ListLen(loc.currentRoute, "/") AND loc.currentRoute NEQ "") {
 						
@@ -169,21 +171,21 @@
 							loc.thisRoute = ReplaceList(loc.item, "[,]", ",");
 							loc.thisURL = ListGetAt(arguments.path, loc.j, "/");
 							if (Left(loc.item, 1) NEQ "[" AND loc.thisRoute NEQ loc.thisURL)
-								loc.match.variables = false;
+								loc.matchVariables = false;
 						}
 
 						// now check to make sure the method is correct, skip this if not definied for the route
 						if (StructKeyExists(loc.routeStruct, "methods")){
 							if (ListFind(loc.routeStruct.methods, loc.requestMethod))
-								loc.match.method = true;
+								loc.matchMethod = true;
 							
+						// assume that the method is correct if not provided
 						} else {
-							// assume that the method is correct if not provided
-							loc.match.method = true;
+							loc.matchMethod = true;
 						}
 
 						// if both method and variables match
-						if (loc.match.method AND loc.match.variables) {
+						if (loc.matchMethod AND loc.matchVariables) {
 							
 							// set route to be returned
 							loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
@@ -229,8 +231,10 @@
 	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public" hint="Filter that sets up named route helper methods">
 		<cfscript>
 			var loc = {};
-			for (loc.key in application.wheels.namedRoutePositions)
-				variables[loc.key & "Path"] = variables[loc.key & "Url"] = $namedRouteMethod;
+			for (loc.key in application.wheels.namedRoutePositions) {
+				variables[loc.key & "Path"] = $namedRouteMethod;
+				variables[loc.key & "Url"] = $namedRouteMethod;
+			}
 		</cfscript>
 	</cffunction>
 	
@@ -255,8 +259,14 @@
 			if (StructKeyExists(application.wheels.namedRoutePositions, arguments.route)) {
 				loc.routePos = application.wheels.namedRoutePositions[arguments.route];
 				
+				// for backwards compatibility, allow loc.routePos to be a list
+				if (IsArray(loc.routePos))
+					loc.pos = loc.routePos[1];
+				else
+					loc.pos = ListFirst(loc.routePos);
+				
+				// grab first route found
 				// todo: don't just accept the first route found
-				loc.pos = IsArray(loc.routePos) ? loc.routePos[1] : ListFirst(loc.routePos);
 				loc.route = application.wheels.routes[loc.pos];
 				loc.vars = ListToArray(loc.route.variables);
 			
