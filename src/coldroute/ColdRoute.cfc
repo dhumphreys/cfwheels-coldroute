@@ -298,7 +298,7 @@
 		<cfargument name="nested" type="boolean" default="false" />
 		<cfargument name="$plural" type="boolean" default="false" />
 		<cfargument name="$call" type="string" default="resource" />
-		<cfargument name="member" type="string" default="#singularize(arguments.name)#" />
+		<cfargument name="member" type="string" default="#iif(arguments.$plural, 'singularize(arguments.name)', 'arguments.name')#" />
 		<cfargument name="collection" type="string" default="#arguments.name#" />
 		<cfargument name="controller" type="string" default="#arguments.member#" />
 		<cfscript>
