@@ -327,7 +327,10 @@
 				
 			// call end() automatically unless this is a nested call
 			// NOTE: see 'end()' source for the resource routes logic
-			return loc.nested ? this : end();
+			if (NOT loc.nested)
+				end();
+				
+			return this;
 		</cfscript>
 	</cffunction>
 	

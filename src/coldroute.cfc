@@ -24,6 +24,7 @@
 	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" output="false" hint="Allow data-method and data-confirm on links">
 		<cfscript>
 			var loc = {};
+			var coreLinkTo = core.linkTo;
 			
 			// look for passed in rest method
 			if (StructKeyExists(arguments, "method")) {
@@ -60,13 +61,14 @@
 				}
 			}
 			
-			return core.linkTo(argumentCollection=arguments);
+			return coreLinkTo(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
 	
 	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" output="false" hint="Look up actual route paths instead of providing default Wheels path generation">
 		<cfscript>
 			var loc = {};
+			var coreUrlFor = core.urlFor;
 			
 			// try looking up exact route if controller and action are set
 			if ((NOT StructKeyExists(arguments, "route") OR arguments.route EQ "") AND StructKeyExists(arguments, "action")) {
@@ -101,7 +103,7 @@
 			}
 			
 			// call core method
-			return core.urlFor(argumentCollection=arguments);
+			return coreUrlFor(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
 	
@@ -222,7 +224,8 @@
 	<cffunction name="$initControllerClass" mixin="controller" returntype="any" access="public" hint="Automatically call filter to create named route methods">
 		<cfargument name="name" type="string" required="false" default="">
 		<cfscript>
-			core.$initControllerClass(argumentCollection=arguments);
+			var coreInit = core.$initControllerClass;
+			coreInit(argumentCollection=arguments);
 			filters(through="$registerNamedRouteMethods");
 			return this;
 		</cfscript>
