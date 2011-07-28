@@ -162,7 +162,7 @@
 					
 					// set up conditions to be met
 					loc.matchMethod = false;
-					loc.matchVariables = false;
+					loc.matchVariables = true;
 
 					if (ListLen(arguments.path, "/") EQ ListLen(loc.currentRoute, "/") AND loc.currentRoute NEQ "") {
 						
@@ -178,7 +178,7 @@
 
 						// now check to make sure the method is correct, skip this if not definied for the route
 						if (StructKeyExists(loc.routeStruct, "methods")){
-							if (ListFind(loc.routeStruct.methods, loc.requestMethod))
+							if (ListFindNoCase(loc.routeStruct.methods, loc.requestMethod))
 								loc.matchMethod = true;
 							
 						// assume that the method is correct if not provided
