@@ -33,11 +33,27 @@
 		</tr>
 		<cfloop array="#application.wheels.routes#" index="i">
 			<tr>
-				<td class="right">#StructKeyExists(i, "name") ? i.name : ''#</td>
-				<td>#StructKeyExists(i, "methods") ? UCase(i.methods) : ''#</td>
+				<td class="right">
+					<cfif StructKeyExists(i, "name")>
+						#i.name#
+					</cfif>
+				</td>
+				<td>
+					<cfif StructKeyExists(i, "methods")>
+						#UCase(i.methods)#
+					</cfif>
+				</td>
 				<td>#i.pattern#</td>
-				<td>#StructKeyExists(i, "controller") ? i.controller : ''#</td>
-				<td>#StructKeyExists(i, "action") ? i.action : ''#</td>
+				<td>
+					<cfif StructKeyExists(i, "controller")>
+						#i.controller#
+					</cfif>
+				</td>
+				<td>
+					<cfif StructKeyExists(i, "action")>
+						#i.action#
+					</cfif>
+				</td>
 			</tr>
 		</cfloop>
 	</table>
