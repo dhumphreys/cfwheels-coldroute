@@ -8,73 +8,44 @@ To bring Rails 3 route features and syntax to CFWheels, making namespaces and re
 
 Just download the latest ```.zip``` file from the __Downloads__ section of the project. Copy this file into the ```/plugins``` directory of your CFWheels project and reload your application.
 
+Optionally, include JQuery and the JQuery UJS scripts to get ```data-method``` and ```data-remote``` links working in your application: https://github.com/rails/jquery-ujs
+
+You can also turn off CFWheels default wildcard routes by placing ```set(loadDefaultRoutes=false)``` in your ```settings.cfm``` file.
+
 __Note:__ I have just posted the latest ```.zip``` file for the plugin. I am making no guarantees on the stability of the code. Also, none of the ```namespace()``` features will work until I submit a patch to CFWheels to enabled complex controller paths.
 
 ## Basics
 
-ColdRoute enables scopes, namespaces, and resources in your routes.
+ColdRoute enables HTTP verbs, scopes, namespaces, and resources in your routes.
 
+* __HTTP Verbs__ are the method of each request sent over HTTP (i.e. GET, POST, PUT, and DELETE). They can be used to restrict route matches.
 * __Scopes__ are routing settings that automatically apply to multiple routes.
-* __Namespaces__ are _scope_ shortcuts to force a prepended path to your routes and controller sub-folder for the controller.
-* __Resources__ are common manipulation methods for managing creation, update, and removal of a type of entity.
+* __Namespaces__ are _scopes_ that force a prepended path to your routes and look for controllers in sub-folders
+* __Resources__ are common routes for managing creation, update, and removal of an entity. They use paths combined with HTTP verbs to match routes.
 
-Routes can also be specified by HTTP method (GET, POST, PUT, or DELETE.) If the exact HTTP method is not used, the route will not be matched. This also allows the same exact path to correspond to more than one route.
+Routes that are specified with HTTP verbs allow the a path to correspond to more than one route, depending on the verb used in the request.
 
 ## How To Use?
 
-After reloading your application, ColdRoute will be available to use in your ```/config/routes.cfm``` file. The route drawing process is triggered by calling ```drawRoutes()```, and then chaining method calls before closing with ```.end();```
+After reloading your application, ColdRoute will be available to use in your ```/config/routes.cfm``` file. The route drawing process is triggered by calling ```drawRoutes()```, chaining method calls, and then ending with a call to ```.end();```
 
 ### Simple routes
 
-Here is how you would create a route with the pattern ```/login``` that maps to the ```Session#new``` action:
+For simple routes you can use the ```match()``` method to define basic patterns that map to controllers and actions. By using the ```get()```, ```post()```, ```put()```, or ```delete()``` helpers, you can create routes that only match specific HTTP verbs. If you prefer, you can just pass a list of HTTP verbs to the ```methods``` parameter of the ```match()``` method to have the same effect.
 
-```coldfusion
-drawRoutes()
-	.match(pattern="/login", controller="session", action="new")
-.end();
-```
+The ```root()``` method will create a route that matches an empty string (or the root of the site). By default, this route will match all HTTP verbs.
 
-The same can be done by using the shorthand ```to``` syntax:
+Common arguments for route creation functions:
 
-```coldfusion
-drawRoutes()
-	.match(pattern="/login", to="session##new")
-.end();
-```
+* ```name``` - a name for the created route. Will be used in path and URL view helpers. Does not have to be unique.
+* ```pattern``` - the pattern to match against a request's path. May use variables in square brackets per CFWheels documentation. Defaults to hyphenized ```name```.
+* ```methods``` - list of HTTP verbs to be allowed for the route. ```method``` is an alias.
+* ```module``` - CFC path to be appended to controller name. Uses dot notation.
+* ```controller``` - controller that this route will map to.
+* ```action``` - action that this route will map to. Defaults to ```name```.
+* ```to``` - shorthand way to specify ```controller``` and ```action``` separated by ```#``` character. (eg. ```items##index```)
 
-And the route can be given a name to allow for easier matching:
-
-```coldfusion
-drawRoutes()
-	.match(name="login", pattern="/login", to="session##new")
-.end();
-```
-
-We can also define the routes with HTTP method helpers. So the same path can match two different actions, depending on the method used.
-
-```coldfusion
-drawRoutes()
-        .get(name="login", pattern="/login", to="session##new")
-        .post(name="login", pattern="/login", to="session##create")
-.end();
-```
-
-Produces the routes:
-
-* ```GET /login``` => ```session#new```
-* ```POST /login``` => ```session#create```
-
-As with the original CFWheels routing implementation, there are concepts such as the _default route_, route variables, and the wildcard route. Each of these is demonstrated below:
-
-```coldfusion
-drawRoutes()
-	.get(name="viewPost", pattern="/posts/[key]", to="post##view")
-	.wildcard()
-	.root(to="home##index")
-.end();
-```
-
-Note that the call to ```wildcard()``` will produce the following routes:
+The ```wildcard()``` helper will create a set of routes that match any controller, action, or key. They are identical to the default CFWheels routes:
 
 * ```/[controller]/[action]/[key]```
 * ```/[controller]/[action]```
@@ -82,44 +53,79 @@ Note that the call to ```wildcard()``` will produce the following routes:
 
 ### Scoping
 
-When a set of routes share common properties, it makes sense to use the ```scope()``` method to set those properties across multiple routes. The following properties can be set: ```controller, path, module```.
+When a set of routes share common arguments, it makes sense to use the family of scoping methods. The most basic scope is started by passing arguments to ```scope()```, which will then take effect until ```end()``` is called. All routes nested between the opening and closing method calls will have the scoped arguments applied to them. The following arguments are allowed:
 
-```coldfusion
-drawRoutes()
-	.scope(path="/reports", controller="reports")
-		.get("albums")
-		.get("artists")
-		.get("favoriteTracks")
-	.end()
-.end();
-```
+* ```name``` - a route name prefix. Most of the time, it will be prepended to the ```name``` route argument.
+* ```path``` - a pattern string to be prepended to the ```pattern``` route argument.
+* ```module``` - a module to be prepended (through dot notation) to the ```module``` route argument.
+* ```controller``` - the controller to use in the nested routes. Can still be overridden.
 
-This would produce the following routes:
+Two common use cases are setting up many routes for a single controller, and creating a namespace with a sub-folder of controllers. Note that __none of the scoping operations actually create routes__. They just set up common arguments for routes created within the scope.
 
-* ```GET /reports/albums``` => ```reports#albums```
-* ```GET /reports/artists``` => ```reports#artists```
-* ```GET /reports/favorite-tracks``` => ```reports#favoriteTracks```
+#### Controllers
 
-Note the special syntax ```get("favoriteTracks")``` is the same as calling ```get(name="favoriteTracks", pattern="favorite-tracks", action="favoriteTracks")```. Also, the ```path``` parameter from ```scope()``` is appended to the ```pattern``` from ```get()```, and the ```controller``` parameter is preserved.
+The ```controller()``` scope helper allows for the ```controller```, ```name```, and ```path``` parameters to be set in a single call. The method takes ```controller``` as the first parameter, and defaults ```path``` and ```name``` to hyphenized and non-hyphenized values of ```controller```, respectively.
+
+So, calling ```controller("favoriteSites")``` is the same as calling ```scope(controller="favoriteSites", name="favoriteSites", pattern="favorite-sites")```.
 
 #### Namespaces
 
-Modules (or namespaces) are really just controller sub-folders. If a controller name is ```admin.products.item```, then the module is ```admin.products``` The controller would be initialized using the ```/controllers/admin/products/Item.cfc``` component.
+The ```namespace()``` scope helpers allows for the ```module```, ```name```, and ```path``` parameters to be set in a single call. The method takes ```module``` as the first parameter, and defaults ```path``` and ```name``` to hyphenized and non-hyphenized values of ```module```, respectively.
 
-A route for this could be created by calling:
+So, calling ```namespace("admin")``` is the same as calling ```scope(module="admin", name="admin", pattern="admin")```.
+
+Remember that the ```module``` argument will be appended to the controller name used in nested routes. This means that if you create a route against the ```item``` controller, it will actually map to the ```admin.item``` controller. You would need to store this controller CFC at ```/controllers/admin/Item.cfc```.
+
+### Resources
+
+_Documentation will be available soon._
+
+## Example Routes
+
+__Note:__ This can be greatly improved through the use of resources, which will be covered in the future.
 
 ```coldfusion
-drawRoutes().
+drawRoutes()
+
+	// administration side
 	.namespace("admin")
-		.namespace("products")
-			.get(pattern="items", to="item##index")
+		.controller("blog")
+			.get("new")
+			.post("create")
+			.get(name="show", pattern="show/[key]")
+			.get(name="edit", pattern="edit/[key]")
+			.put(name="update", pattern="update/[key]")
+			.delete(name="delete", pattern="delete/[key]")
+			.root(action="index")
 		.end()
 	.end()
+	
+	// public side
+	.controller("blog")
+		.get(name="show", pattern="[key]")
+		.root(action="index")
+	.end()
+	
+	// default routes
+	.wildcard()
+	.root(to="blog##index")
 .end();
 ```
 
-This produces the single route:
+This would create the following routes:
 
-* ```GET /admin/products/items``` => ```admin.products.item#index```
+* ```GET /admin/blog/new``` => ```admin.blog#new```
+* ```POST /admin/blog/create``` => ```admin.blog#create```
+* ```GET /admin/blog/show/[key]``` => ```admin.blog#show```
+* ```GET /admin/blog/edit/[key]``` => ```admin.blog#edit```
+* ```PUT /admin/blog/update/[key]``` => ```admin.blog#update```
+* ```DELETE /admin/blog/delete/[key]``` => ```admin.blog#delete```
+* ```/admin/blog``` => ```admin.blog#index```
+* ```GET /blog/[key]``` => ```blog#show```
+* ```GET /blog``` => ```blog#index```
+* ```/[controller]/[action]/[key]``` => ```[controller]#[action]```
+* ```/[controller]/[action]``` => ```[controller]#[action]```
+* ```/[controller]``` => ```[controller]#index```
+* ```/``` => ```blog#index```
 
-All the ```namespace("admin")``` call really does is call ```scope(path="/admin", module="admin")```. This causes ```admin``` to be prepended to all controller names used within the namespace. While this is questionable for use in an MVC application, it does help to organize complex applications with lots of controllers and views.
+More documentation to come...
