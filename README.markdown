@@ -8,7 +8,7 @@ To bring Rails 3 route features and syntax to CFWheels, making namespaces and re
 
 Just download the latest ```.zip``` file from the __Downloads__ section of the project. Copy this file into the ```/plugins``` directory of your CFWheels project and reload your application.
 
-Optionally, include JQuery and the JQuery UJS scripts to get ```data-method``` and ```data-remote``` links working in your application: https://github.com/rails/jquery-ujs
+Optionally, include jQuery 1.4.4+ and the jQuery UJS scripts to get ```data-method```, ```data-confirm```, and  ```data-remote``` links working in your application: https://github.com/rails/jquery-ujs
 
 You can also turn off CFWheels default wildcard routes by placing ```set(loadDefaultRoutes=false)``` in your ```settings.cfm``` file.
 
@@ -25,7 +25,7 @@ ColdRoute enables HTTP verbs, scopes, namespaces, and resources in your routes.
 
 Routes that are specified with HTTP verbs allow the a path to correspond to more than one route, depending on the verb used in the request.
 
-## How To Use?
+## Building Routes
 
 After reloading your application, ColdRoute will be available to use in your ```/config/routes.cfm``` file. The route drawing process is triggered by calling ```drawRoutes()```, chaining method calls, and then ending with a call to ```.end();```
 
@@ -79,6 +79,47 @@ Remember that the ```module``` argument will be appended to the controller name 
 ### Resources
 
 _Documentation will be available soon._
+
+## View Helpers
+
+Using the standard ```linkTo``` and ```urlFor``` link helpers will find the appropriate route for the controller and action passed in. However, another option is to use the ColdRoute path and URL helpers.
+
+For each named route in your application, there will be two methods generated to assist you in using that route. For example, if a route is named _items_, then there will be ```itemsPath()``` and ```itemsUrl()``` methods generated for you. They will return relative and absolute URLs for that route, respectively.
+
+### Parameters
+
+Any valid ```urlFor``` parameters may be passed into the path helpers, except ```route``` and ```onlyPath```. There is an added bonus of automatically mapping unnamed arguments to the variables required for the route.
+
+If you had a named route like ```get(name="editItemComment", pattern="/items/[itemKey]/comments/[key]/edit")``` in your routes file, then you could call ```editItemCommentPath(237, 15)``` to generate ```/items/237/comments/15/edit```.
+
+You do not even have to pass static values to the helpers. In fact, you can just as easily pass model objects: ```editItemCommentPath(item, comment)```. The path helper will call ```toParam()``` on any model objects that are passed in. ```toParam()``` defaults to calling the CFWheels ```key()``` method, but can be overridden in your model CFCs as needed.
+
+### HTTP verbs
+
+Remember that routes can also require specific HTTP verbs to be correctly matched. You may notice that the path and URL helpers above only generate paths for routes. It is up to the developer to specify the correct HTTP method to use for forms and links.
+
+However, most web browsers do not support the PUT or DELETE methods. There is special logic used in ColdRoute for determining the HTTP verb of the request which will allow a ```_method``` form parameter to override the HTTP verb, as long as the actual request is a POST.
+
+For forms, you just have to pass a hidden field to override the method:
+
+```coldfusion
+<form action="#updateItemPath(item)#" method="post">
+	<input type="hidden" name="_method" value="put" />
+	<!-- form fields -->
+</form>
+```
+
+Links are a little more complex, since they cannot be forced to be POST requests. A good way to handle special links is to set a ```data-method``` attribute, and then bind the click action of the link to generate and submit a form with a hidden ```_method``` field. The jQuery UJS script will do this automatically for you.
+
+```coldfusion
+<a href="#deleteItemPath(item)#" data-method="delete" data-confirm="Delete This Item?" rel="nofollow">Delete</a>
+```
+
+Or, using the ColdRoute ```linkTo``` overrides:
+
+```coldfusion
+#linkTo(text="Delete", href=deleteItemPath(item), method="delete", confirm="Delete This Item?")# 
+```
 
 ## Example Routes
 
