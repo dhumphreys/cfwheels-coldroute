@@ -83,19 +83,23 @@
 		<cfscript>
 			var loc = {};
 			
-			// pull arguments from scope stack
-			StructAppend(arguments, scopeStack[1], false);
-			
 			// named route variables (initially empty)
 			loc.scopeName = "";
 			loc.memberName = "";
 			loc.collectionName = "";
 			loc.name = "";
 			
-			// get control variables
-			loc.hasScopeName = StructKeyExists(arguments, "scopeName");
-			loc.hasModule = StructKeyExists(arguments, "module");
-			loc.hasResource = StructKeyExists(arguments, "resource");
+			// use scoped controller if found
+			if (StructKeyExists(scopeStack[1], "controller") AND NOT StructKeyExists(arguments, "controller"))
+				arguments.controller = scopeStack[1].controller;
+			
+			// use scoped module if found
+			if (StructKeyExists(scopeStack[1], "module")) {
+				if (StructKeyExists(arguments, "module"))
+					arguments.module &= "." & scopeStack[1].module;
+				else
+					arguments.module = scopeStack[1].module;
+			}
 			
 			// interpret 'to' as 'controller#action'
 			if (StructKeyExists(arguments, "to")) {
@@ -104,10 +108,8 @@
 				StructDelete(arguments, "to");
 			}
 			
-			// pull name from arguments, or make it blank
-			if (NOT StructKeyExists(arguments, "name")) {
-				loc.name = "";
-			} else {
+			// pull name from arguments if it exists
+			if (StructKeyExists(arguments, "name")) {
 				loc.name = arguments.name;
 				
 				// guess pattern and/or action
@@ -127,40 +129,34 @@
 				StructDelete(arguments, "method");
 			}
 			
-			// remove ''methods' argument if settings disable it
+			// remove 'methods' argument if settings disable it
 			if (NOT variables.methods AND StructKeyExists(arguments, "methods"))
 				StructDelete(arguments, "methods");
 			
 			// add scoped path to pattern
-			if (StructKeyExists(arguments, "path")) {
-				arguments.pattern = arguments.path & "/" & arguments.pattern;
-				StructDelete(arguments, "path");
-			}
+			if (StructKeyExists(scopeStack[1], "path"))
+				arguments.pattern = scopeStack[1].path & "/" & arguments.pattern;
 			
 			// force leading slashes, remove trailing and duplicate slashes
 			arguments.pattern = Replace(arguments.pattern, "//", "/", "ALL");
 			arguments.pattern = REReplace(arguments.pattern, "^([^/]+)", "/\1");
 			arguments.pattern = REReplace(arguments.pattern, "([^/]+)/$", "\1");
 			
-			// process module namespace
-			if (loc.hasModule) {
-				
-				// append to controller or leave module variable set
-				if (StructKeyExists(arguments, "controller")) {
-					arguments.controller = arguments.module & "." & arguments.controller;
-					StructDelete(arguments, "module");
-				}
+			// if both module and controller are set, combine them
+			if (StructKeyExists(arguments, "module") AND StructKeyExists(arguments, "controller")) {
+				arguments.controller = arguments.module & "." & arguments.controller;
+				StructDelete(arguments, "module");
 			}
 			
 			// if we are using resources, use their names in the route name
-			if (loc.hasResource) {
-				loc.collectionName = arguments.collection;
-				loc.memberName = arguments.member;
+			if (StructKeyExists(scopeStack[1], "resource")) {
+				loc.collectionName = scopeStack[1].collection;
+				loc.memberName = scopeStack[1].member;
 			}
 			
 			// use scoped name if it is set
-			if (loc.hasScopeName)
-				loc.scopeName = arguments.scopeName;
+			if (StructKeyExists(scopeStack[1], "name"))
+				loc.scopeName = scopeStack[1].name;
 			
 			// build named routes in correct order according to rails conventions
 			switch (scopeStack[1].$call) {
@@ -255,14 +251,9 @@
 			if (StructKeyExists(scopeStack[1], "module") AND StructKeyExists(arguments, "module"))
 				arguments.module = scopeStack[1].module & "." & arguments.module;
 				
-			// append to scoped name
-			if (StructKeyExists(arguments, "name")) {
-				if (StructKeyExists(scopeStack[1], "scopeName"))
-					arguments.scopeName = scopeStack[1].scopeName & capitalize(arguments.name);
-				else
-					arguments.scopeName = arguments.name;
-				StructDelete(arguments, "name");
-			}
+			// combine name with scope name
+			if (StructKeyExists(arguments, "name") AND StructKeyExists(scopeStack[1], "name"))
+				arguments.name = scopeStack[1].name & capitalize(arguments.name);
 			
 			// put scope arguments on the stack
 			StructAppend(arguments, scopeStack[1], false);
