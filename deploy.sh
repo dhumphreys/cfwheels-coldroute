@@ -8,4 +8,4 @@ cd src
 zip ../coldroute-0.0.1.zip coldroute.cfc index.cfm
 
 # add the core coldroute files
-zip -r ../coldroute-0.0.1.zip coldroute/
+zip -r ../coldroute-0.0.1.zip lib/

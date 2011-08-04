@@ -2,7 +2,7 @@
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
 			this.version = "1.1.1,1.1.2,1.1.3,1.2";
-			application.wheels.coldRoute = CreateObject("component", "/plugins.coldroute.coldroute.ColdRoute").init();
+			application.wheels.coldroute = CreateObject("component", "/plugins.coldroute.lib.Mapper").init();
 			return this;
 		</cfscript>
 	</cffunction>
@@ -10,7 +10,7 @@
 	<cffunction name="drawRoutes" mixin="application" returntype="struct" output="false" access="public" hint="Start drawing routes">
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
 		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
-		<cfreturn application.wheels.coldRoute.draw(argumentCollection=arguments) />
+		<cfreturn application.wheels.coldroute.draw(argumentCollection=arguments) />
 	</cffunction>
 	
 	<cffunction name="toParam" mixin="model" returntype="any" access="public" output="false" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
