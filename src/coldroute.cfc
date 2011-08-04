@@ -1,8 +1,17 @@
 <cfcomponent output="false">
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
+			var loc = {};
+			
+			// cfwheels version string
 			this.version = "1.1.1,1.1.2,1.1.3,1.2";
-			application.wheels.coldroute = CreateObject("component", "/plugins.coldroute.lib.Mapper").init();
+			
+			// get cfwheels plugin prefix
+			loc.prefix = ListChangeDelims(application.wheels.webPath & application.wheels.pluginPath, ".", "/");
+			
+			// initialize coldroute mapper
+			application.wheels.coldroute = CreateObject("component", "#loc.prefix#.coldroute.lib.Mapper").init();
+			
 			return this;
 		</cfscript>
 	</cffunction>
