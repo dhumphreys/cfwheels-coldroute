@@ -137,10 +137,10 @@
 				StructDelete(arguments, "path");
 			}
 			
-			// fix possible path string issues
+			// force leading slashes, remove trailing and duplicate slashes
 			arguments.pattern = Replace(arguments.pattern, "//", "/", "ALL");
-			arguments.pattern = REReplace(arguments.pattern, "/([^/]+)/$", "/\1");
 			arguments.pattern = REReplace(arguments.pattern, "^([^/]+)", "/\1");
+			arguments.pattern = REReplace(arguments.pattern, "([^/]+)/$", "\1");
 			
 			// process module namespace
 			if (loc.hasModule) {
