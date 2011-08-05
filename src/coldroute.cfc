@@ -140,6 +140,13 @@
 		</cfscript>
 	</cffunction>
 
+	<cffunction name="$loadRoutes" mixin="application,dispatch" returntype="void" access="public" output="false" hint="Prevent race condition when reloading routes in design mode">
+		<cfset var coreLoadRoutes = core.$loadRoutes />
+		<cflock name="coldrouteLoadRoutes" timeout="5" type="exclusive">
+			<cfset coreLoadRoutes() />
+		</cflock>
+	</cffunction>
+
 	<!--- logic from restful-routes plugin by James Gibson --->
 	<cffunction name="$findMatchingRoute" mixin="dispatch" returntype="struct" access="public" hint="Help Wheels match routes using path and HTTP method">
 		<cfargument name="path" type="string" required="true" />
