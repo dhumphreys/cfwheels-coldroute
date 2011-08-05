@@ -56,12 +56,18 @@
 					delete(pattern="", action="delete");
 				end();
 			} else if (scopeStack[1].$call EQ "resource") {
-				$get(pattern="new", action="new", name="new");
-				$get(pattern="edit", action="edit", name="edit");
-				$get(pattern="", action="show");
-				post(pattern="", action="create");
-				put(pattern="", action="update");
-				delete(pattern="", action="delete");
+				collection();
+					post(pattern="", action="create");
+				end();
+				scope($call="new");
+					$get(pattern="new", action="new", name="new");
+				end();
+				member();
+					$get(pattern="edit", action="edit", name="edit");
+					$get(pattern="", action="show");
+					put(pattern="", action="update");
+					delete(pattern="", action="delete");
+				end();
 			}
 			
 			// remove top of stack to end nesting
@@ -149,10 +155,10 @@
 			}
 			
 			// if we are using resources, use their names in the route name
-			if (StructKeyExists(scopeStack[1], "resource")) {
+			if (StructKeyExists(scopeStack[1], "collection"))
 				loc.collectionName = scopeStack[1].collection;
+			if (StructKeyExists(scopeStack[1], "member"))
 				loc.memberName = scopeStack[1].member;
-			}
 			
 			// use scoped name if it is set
 			if (StructKeyExists(scopeStack[1], "name"))
@@ -239,7 +245,6 @@
 		<cfargument name="name" type="string" required="false" />
 		<cfargument name="path" type="string" required="false" />
 		<cfargument name="module" type="string" required="false" />
-		<cfargument name="resource" type="string" required="false" />
 		<cfargument name="$call" type="string" default="scope" />
 		<cfscript>
 			
@@ -284,41 +289,82 @@
 	--- Resources ---
 	---------------->
 	
-	<cffunction name="resource" returntype="struct" access="public" hint="Set up REST singular resource">
-		<cfargument name="name" type="string" required="true" />
-		<cfargument name="nested" type="boolean" default="false" />
-		<cfargument name="$plural" type="boolean" default="false" />
+	<cffunction name="resource" returntype="struct" access="public" hint="Set up singular REST resource">
+		<cfargument name="name" type="string" required="true" hint="Name of resource" />
+		<cfargument name="nested" type="boolean" default="false" hint="Whether or not additional calls will be nested" />
+		<cfargument name="controller" type="string" required="false" hint="Override controller used by resource" />
+		<cfargument name="singular" type="string" required="false" hint="Override singularize() result in plural resources" />
+		<cfargument name="plural" type="string" required="false" hint="Override pluralize() result in singular resource" />
 		<cfargument name="$call" type="string" default="resource" />
-		<cfargument name="member" type="string" default="#iif(arguments.$plural, 'singularize(arguments.name)', 'arguments.name')#" />
-		<cfargument name="collection" type="string" default="#arguments.name#" />
-		<cfargument name="controller" type="string" default="#arguments.member#" />
+		<cfargument name="$plural" type="boolean" default="false" />
 		<cfscript>
 			var loc = {};
-			loc.nested = arguments.nested;
-				
-			// set up mapping path 
-			arguments.path = hyphenize(arguments.name);
-			arguments.resource = arguments.member;
+			loc.args = {};
 			
-			// if we are already under a resource, prepend proper parent member names
-			if (StructKeyExists(scopeStack[1], "resource")) {
-				arguments.member = scopeStack[1].member & capitalize(arguments.member);
-				arguments.collection = scopeStack[1].member & capitalize(arguments.collection);
+			// if plural resource
+			if (arguments.$plural) {
 				
-				// if dealing with a plural parent resource, include its key in the path
-				if (scopeStack[1].$call EQ "resources")
-					arguments.path = "[#scopeStack[1].resource#Key]/#arguments.path#";
+				// setup singular and plural words
+				if (NOT StructKeyExists(arguments, "singular"))
+					arguments.singular = singularize(arguments.name);
+				arguments.plural = arguments.name;
+				
+				// set collection, member path, and nested path
+				loc.args.collection = arguments.plural;
+				loc.args.nestedPath = "[#arguments.singular#Key]";
+				loc.args.memberPath = "[key]";
+				
+				// for uncountable plurals, append "Index"
+				if (arguments.singular EQ arguments.plural)
+					loc.args.collection &= "Index";
+				
+			// if singular resource
+			} else {
+				
+				// setup singular and plural words
+				arguments.singular = arguments.name;
+				if (NOT StructKeyExists(arguments, "plural"))
+					arguments.plural = pluralize(arguments.name);
+				
+				// set collection and member path
+				loc.args.collection = arguments.singular;
+				loc.args.memberPath = "";
 			}
 			
-			// scope using the resource name as the path
-			StructDelete(arguments, "name");
-			StructDelete(arguments, "nested");
-			StructDelete(arguments, "$plural");
-			scope(argumentCollection=arguments);
+			// set member name
+			loc.args.member = arguments.singular;
+			
+			// if controller name was passed, use it
+			if (StructKeyExists(arguments, "controller")) {
+				loc.args.controller = arguments.controller;
+				
+			} else {
+				
+				// set controller name based on naming preference
+				switch (application.wheels.resourceControllerNaming) {
+					case "name": loc.args.controller = arguments.name; break;
+					case "singular": loc.args.controller = arguments.singular; break;
+					default: loc.args.controller = arguments.plural;
+				}
+			}
+			
+			// prepend to member and collection if member is scoped
+			if (StructKeyExists(scopeStack[1], "member")) {
+				loc.args.member = scopeStack[1].member & capitalize(loc.args.member);
+				loc.args.collection = scopeStack[1].member & capitalize(loc.args.collection);
+			}
+				
+			// set mapping path, prepending nested path if scoped
+			loc.args.path = hyphenize(arguments.name);
+			if (StructKeyExists(scopeStack[1], "nestedPath"))
+				loc.args.path = scopeStack[1].nestedPath & "/" & loc.args.path;
+			
+			// scope the resource
+			scope($call=arguments.$call, argumentCollection=loc.args);
 				
 			// call end() automatically unless this is a nested call
 			// NOTE: see 'end()' source for the resource routes logic
-			if (NOT loc.nested)
+			if (NOT arguments.nested)
 				end();
 				
 			return this;
@@ -335,7 +381,7 @@
 	
 	<cffunction name="member" returntype="struct" access="public" hint="Apply routes to resource member">
 		<cfscript>
-			return scope(path="[key]", $call="member");
+			return scope(path=scopeStack[1].memberPath, $call="member");
 		</cfscript>
 	</cffunction>
 	

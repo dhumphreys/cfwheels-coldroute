@@ -12,6 +12,11 @@
 			// initialize coldroute mapper
 			application.wheels.coldroute = CreateObject("component", "#loc.prefix#.coldroute.lib.Mapper").init();
 			
+			// set wheels setting for resource controller naming
+			// NOTE: options are singular, plural, or name
+			if (NOT StructKeyExists(application.wheels, "resourceControllerNaming"))
+				application.wheels.resourceControllerNaming = "plural";
+			
 			return this;
 		</cfscript>
 	</cffunction>
