@@ -38,35 +38,65 @@
 	
 	<cffunction name="end" returntype="struct" access="public">
 		<cfscript>
+			var loc = {};
+			
+			// consider only / except REST routes for resources
+			if (ReFind("^resource[s]?", scopeStack[1].$call)) {
+				loc.except = ListToArray(scopeStack[1].except);
+				loc.only = "index,create,new,edit,show,update,delete";
+				loc.iEnd = ArrayLen(loc.except);
+				
+				if (loc.iEnd EQ 0)
+					loc.only = LCase(iif(ListLen(scopeStack[1].only) GT 0, 'scopeStack[1].only', 'loc.only'));
+				else
+					for (loc.i=1; loc.i LTE loc.iEnd; loc.i++)
+						loc.only = LCase(ListDeleteAt(loc.only, ListFindNoCase(loc.only, loc.except[loc.i])));
+			}
 			
 			// if last action was a resource, set up REST routes
 			// TODO: consider non-restful routes
 			if (scopeStack[1].$call EQ "resources") {
 				collection();
-					$get(pattern="", action="index");
-					post(pattern="", action="create");
+					if (ListFind(loc.only, "index"))
+						$get(pattern="", action="index");
+					if (ListFindNoCase(loc.only, "create"))
+						post(pattern="", action="create");
 				end();
-				scope($call="new");
-					$get(pattern="new", action="new", name="new");
-				end();
+				if (ListFindNoCase(loc.only, "new")) {
+					scope($call="new");
+						$get(pattern="new", action="new", name="new");
+					end();
+				}
 				member();
-					$get(pattern="edit", action="edit", name="edit");
-					$get(pattern="", action="show");
-					put(pattern="", action="update");
-					delete(pattern="", action="delete");
+					if (ListFind(loc.only, "edit"))
+						$get(pattern="edit", action="edit", name="edit");
+					if (ListFind(loc.only, "show"))
+						$get(pattern="", action="show");
+					if (ListFind(loc.only, "update"))
+						put(pattern="", action="update");
+					if (ListFind(loc.only, "delete"))
+						delete(pattern="", action="delete");
 				end();
 			} else if (scopeStack[1].$call EQ "resource") {
-				collection();
-					post(pattern="", action="create");
-				end();
-				scope($call="new");
-					$get(pattern="new", action="new", name="new");
-				end();
+				if (ListFind(loc.only, "create")) {
+					collection();
+						post(pattern="", action="create");
+					end();
+				}
+				if (ListFind(loc.only, "new")) {
+					scope($call="new");
+						$get(pattern="new", action="new", name="new");
+					end();
+				}
 				member();
-					$get(pattern="edit", action="edit", name="edit");
-					$get(pattern="", action="show");
-					put(pattern="", action="update");
-					delete(pattern="", action="delete");
+					if (ListFind(loc.only, "edit"))
+						$get(pattern="edit", action="edit", name="edit");
+					if (ListFind(loc.only, "show"))
+						$get(pattern="", action="show");
+					if (ListFind(loc.only, "update"))
+						put(pattern="", action="update");
+					if (ListFind(loc.only, "delete"))
+						delete(pattern="", action="delete");
 				end();
 			}
 			
@@ -297,6 +327,8 @@
 		<cfargument name="plural" type="string" required="false" hint="Override pluralize() result in singular resource" />
 		<cfargument name="$call" type="string" default="resource" />
 		<cfargument name="$plural" type="boolean" default="false" />
+		<cfargument name="only" type="string" default="" hint="Use to specify REST routes to be generated" />
+		<cfargument name="except" type="string" default="" hint="Use to specify REST routes to NOT be generated, takes priority over only" />
 		<cfscript>
 			var loc = {};
 			loc.args = {};
@@ -333,6 +365,10 @@
 			
 			// set member name
 			loc.args.member = arguments.singular;
+			
+			// pass except and only arguments through
+			loc.args.except = arguments.except;
+			loc.args.only = arguments.only;
 			
 			// if controller name was passed, use it
 			if (StructKeyExists(arguments, "controller")) {
