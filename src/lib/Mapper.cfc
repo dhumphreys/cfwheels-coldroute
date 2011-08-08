@@ -38,8 +38,6 @@
 	
 	<cffunction name="end" returntype="struct" access="public">
 		<cfscript>
-			var loc = {};
-			
 			// if last action was a resource, set up REST routes
 			// TODO: consider non-restful routes
 			// create plural resource routes
