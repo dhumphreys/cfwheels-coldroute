@@ -40,62 +40,52 @@
 		<cfscript>
 			var loc = {};
 			
-			// consider only / except REST routes for resources
-			if (ReFind("^resource[s]?", scopeStack[1].$call)) {
-				loc.except = ListToArray(scopeStack[1].except);
-				loc.only = "index,create,new,edit,show,update,delete";
-				loc.iEnd = ArrayLen(loc.except);
-				
-				if (loc.iEnd EQ 0)
-					loc.only = LCase(iif(ListLen(scopeStack[1].only) GT 0, 'scopeStack[1].only', 'loc.only'));
-				else
-					for (loc.i=1; loc.i LTE loc.iEnd; loc.i++)
-						loc.only = LCase(ListDeleteAt(loc.only, ListFindNoCase(loc.only, loc.except[loc.i])));
-			}
-			
 			// if last action was a resource, set up REST routes
 			// TODO: consider non-restful routes
+			// create plural resource routes
 			if (scopeStack[1].$call EQ "resources") {
 				collection();
-					if (ListFind(loc.only, "index"))
+					if (ListFind(scopeStack[1].actions, "index"))
 						$get(pattern="", action="index");
-					if (ListFindNoCase(loc.only, "create"))
+					if (ListFindNoCase(scopeStack[1].actions, "create"))
 						post(pattern="", action="create");
 				end();
-				if (ListFindNoCase(loc.only, "new")) {
+				if (ListFindNoCase(scopeStack[1].actions, "new")) {
 					scope($call="new");
 						$get(pattern="new", action="new", name="new");
 					end();
 				}
 				member();
-					if (ListFind(loc.only, "edit"))
+					if (ListFind(scopeStack[1].actions, "edit"))
 						$get(pattern="edit", action="edit", name="edit");
-					if (ListFind(loc.only, "show"))
+					if (ListFind(scopeStack[1].actions, "show"))
 						$get(pattern="", action="show");
-					if (ListFind(loc.only, "update"))
+					if (ListFind(scopeStack[1].actions, "update"))
 						put(pattern="", action="update");
-					if (ListFind(loc.only, "delete"))
+					if (ListFind(scopeStack[1].actions, "delete"))
 						delete(pattern="", action="delete");
 				end();
+				
+			// create singular resource routes
 			} else if (scopeStack[1].$call EQ "resource") {
-				if (ListFind(loc.only, "create")) {
+				if (ListFind(scopeStack[1].actions, "create")) {
 					collection();
 						post(pattern="", action="create");
 					end();
 				}
-				if (ListFind(loc.only, "new")) {
+				if (ListFind(scopeStack[1].actions, "new")) {
 					scope($call="new");
 						$get(pattern="new", action="new", name="new");
 					end();
 				}
 				member();
-					if (ListFind(loc.only, "edit"))
+					if (ListFind(scopeStack[1].actions, "edit"))
 						$get(pattern="edit", action="edit", name="edit");
-					if (ListFind(loc.only, "show"))
+					if (ListFind(scopeStack[1].actions, "show"))
 						$get(pattern="", action="show");
-					if (ListFind(loc.only, "update"))
+					if (ListFind(scopeStack[1].actions, "update"))
 						put(pattern="", action="update");
-					if (ListFind(loc.only, "delete"))
+					if (ListFind(scopeStack[1].actions, "delete"))
 						delete(pattern="", action="delete");
 				end();
 			}
@@ -350,6 +340,9 @@
 				if (arguments.singular EQ arguments.plural)
 					loc.args.collection &= "Index";
 				
+				// setup loc.args.actions
+				loc.args.actions = "index,new,create,show,edit,update,delete";
+				
 			// if singular resource
 			} else {
 				
@@ -361,14 +354,26 @@
 				// set collection and member path
 				loc.args.collection = arguments.singular;
 				loc.args.memberPath = "";
+				
+				// setup loc.args.actions
+				loc.args.actions = "new,create,show,edit,update,delete";
 			}
 			
 			// set member name
 			loc.args.member = arguments.singular;
 			
-			// pass except and only arguments through
-			loc.args.except = arguments.except;
-			loc.args.only = arguments.only;
+			// consider only / except REST routes for resources
+			// allow arguments.only to override loc.args.only
+			if (ListLen(arguments.only) GT 0)
+				loc.args.actions = LCase(arguments.only);
+			
+			// remove unwanted routes from loc.args.only
+			if (ListLen(arguments.except) GT 0) {
+				loc.except = ListToArray(arguments.except);
+				loc.iEnd = ArrayLen(loc.except);
+				for (loc.i=1; loc.i LTE loc.iEnd; loc.i++)
+					loc.args.actions = ReReplace(loc.args.actions, "\b#loc.except[loc.i]#\b(,?|$)", "");
+			}
 			
 			// if controller name was passed, use it
 			if (StructKeyExists(arguments, "controller")) {
