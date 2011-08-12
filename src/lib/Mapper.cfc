@@ -1,5 +1,5 @@
 <cfcomponent output="false">
-	<cfinclude template="/wheels/global/functions.cfm" />
+	<cfinclude template="../../../wheels/global/functions.cfm" />
 	
 	<cffunction name="init" returntype="struct" access="public">
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
