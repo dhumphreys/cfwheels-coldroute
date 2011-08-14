@@ -202,8 +202,15 @@
 				// loop over all possible patterns
 				while (loc.pattern NEQ "") {
 					
+					// duplicate arguments to avoid scoping problems
+					loc.args = Duplicate(arguments);
+					
+					// remove action argument if [action] is a route variable
+					if (Find("[action]", loc.pattern))
+						StructDelete(loc.args, "action");
+					
 					// add current route to wheels
-					arguments.pattern = Replace(loc.pattern, "(", "", "ALL");
+					loc.args.pattern = Replace(loc.pattern, "(", "", "ALL");
 					addRoute(argumentCollection=Duplicate(arguments));
 					
 					// remove last optional segment
@@ -246,16 +253,12 @@
 	</cffunction>
 	
 	<cffunction name="wildcard" returntype="struct" access="public" hint="Special wildcard matching">
+		<cfargument name="action" default="index" hint="Default action for wildcard patterns" />
 		<cfscript>
-			if (StructKeyExists(scopeStack[1], "controller")) {
-				match(name="wildcard", pattern="/[action]/[key]");
-				match(name="wildcard", pattern="/[action]");
-				match(name="wildcard", pattern="/", action="index");
-			} else {
-				match(name="wildcard", pattern="/[controller]/[action]/[key]");
-				match(name="wildcard", pattern="/[controller]/[action]");
-				match(name="wildcard", pattern="/[controller]", action="index");
-			}
+			if (StructKeyExists(scopeStack[1], "controller"))
+				match(name="wildcard", pattern="[action](/[key])", action=arguments.action);
+			else
+				match(name="wildcard", pattern="[controller](/[action](/[key]))", action=arguments.action);
 			return this;
 		</cfscript>
 	</cffunction>
