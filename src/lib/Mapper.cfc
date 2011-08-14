@@ -189,9 +189,32 @@
 			if (loc.name NEQ "")
 				arguments.name = loc.name;
 			
-			// TODO: handle optional arguments
-			// add routes to wheels
-			addRoute(argumentCollection=arguments);
+			// handle optional arguments
+			if (arguments.pattern CONTAINS "(") {
+				
+				// confirm nesting of optional segments
+				if (REFind("\).*\(", arguments.pattern))
+					$throw(type="Wheels.InvalidRoute", message="Optional pattern segments must be nested.");
+				
+				// strip closing parens from pattern
+				loc.pattern = Replace(arguments.pattern, ")", "", "ALL");
+				
+				// loop over all possible patterns
+				while (loc.pattern NEQ "") {
+					
+					// add current route to wheels
+					arguments.pattern = Replace(loc.pattern, "(", "", "ALL");
+					addRoute(argumentCollection=Duplicate(arguments));
+					
+					// remove last optional segment
+					loc.pattern = REReplace(loc.pattern, "(^|\()[^(]+$", "");
+				}
+				
+			} else {
+				
+				// add route to wheels as is
+				addRoute(argumentCollection=arguments);
+			}
 			
 			return this;
 		</cfscript>
