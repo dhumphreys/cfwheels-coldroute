@@ -220,16 +220,8 @@
 				// loop over all possible patterns
 				while (loc.pattern NEQ "") {
 					
-					// duplicate arguments to avoid scoping problems
-					loc.args = Duplicate(arguments);
-					
-					// remove action argument if [action] is a route variable
-					if (Find("[action]", loc.pattern))
-						StructDelete(loc.args, "action");
-					
 					// add current route to wheels
-					loc.args.pattern = Replace(loc.pattern, "(", "", "ALL");
-					addRoute(argumentCollection=Duplicate(arguments));
+					$addRoute(argumentCollection=arguments, pattern=Replace(loc.pattern, "(", "", "ALL"));
 					
 					// remove last optional segment
 					loc.pattern = REReplace(loc.pattern, "(^|\()[^(]+$", "");
@@ -238,7 +230,7 @@
 			} else {
 				
 				// add route to wheels as is
-				addRoute(argumentCollection=arguments);
+				$addRoute(argumentCollection=arguments);
 			}
 			
 			return this;
@@ -453,6 +445,26 @@
 	<cffunction name="collection" returntype="struct" access="public" hint="Apply routes to resource collection">
 		<cfscript>
 			return scope($call="collection");
+		</cfscript>
+	</cffunction>
+	
+	<!---------------------
+	--- Private Methods ---
+	---------------------->
+	
+	<cffunction name="$addRoute" returntype="void" access="private" hint="Add route to cfwheels, removing useless params">
+		<cfscript>
+					
+			// remove controller argument if [controller] is a route variable
+			if (Find("[controller]", arguments.pattern) AND StructKeyExists(arguments, "controller"))
+				StructDelete(arguments, "controller");
+					
+			// remove action argument if [action] is a route variable
+			if (Find("[action]", arguments.pattern) AND StructKeyExists(arguments, "action"))
+				StructDelete(arguments, "action");
+				
+			// add route to cfwheels
+			addRoute(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
 </cfcomponent>
