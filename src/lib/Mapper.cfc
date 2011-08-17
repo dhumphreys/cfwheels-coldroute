@@ -305,6 +305,7 @@
 	<cffunction name="resource" returntype="struct" access="public" hint="Set up singular REST resource">
 		<cfargument name="name" type="string" required="true" hint="Name of resource" />
 		<cfargument name="nested" type="boolean" default="false" hint="Whether or not additional calls will be nested" />
+		<cfargument name="path" type="string" default="#hyphenize(arguments.name)#" hint="Path for resource" />
 		<cfargument name="controller" type="string" required="false" hint="Override controller used by resource" />
 		<cfargument name="singular" type="string" required="false" hint="Override singularize() result in plural resources" />
 		<cfargument name="plural" type="string" required="false" hint="Override pluralize() result in singular resource" />
@@ -316,9 +317,6 @@
 			var loc = {};
 			loc.args = {};
 			
-			// turn name into a path
-			loc.path = hyphenize(arguments.name);
-			
 			// if plural resource
 			if (arguments.$plural) {
 				
@@ -329,8 +327,8 @@
 				
 				// set collection and scoped paths
 				loc.args.collection = arguments.plural;
-				loc.args.nestedPath = "#loc.path#/[#arguments.singular#Key]";
-				loc.args.memberPath = "#loc.path#/[key]";
+				loc.args.nestedPath = "#arguments.path#/[#arguments.singular#Key]";
+				loc.args.memberPath = "#arguments.path#/[key]";
 				
 				// for uncountable plurals, append "Index"
 				if (arguments.singular EQ arguments.plural)
@@ -349,8 +347,8 @@
 				
 				// set collection and scoped paths
 				loc.args.collection = arguments.singular;
-				loc.args.memberPath = loc.path;
-				loc.args.nestedPath = loc.path;
+				loc.args.memberPath = arguments.path;
+				loc.args.nestedPath = arguments.path;
 				
 				// setup loc.args.actions
 				loc.args.actions = "new,create,show,edit,update,delete";
@@ -360,7 +358,7 @@
 			loc.args.member = arguments.singular;
 			
 			// set collection path
-			loc.args.collectionPath = loc.path;
+			loc.args.collectionPath = arguments.path;
 			
 			// consider only / except REST routes for resources
 			// allow arguments.only to override loc.args.only
