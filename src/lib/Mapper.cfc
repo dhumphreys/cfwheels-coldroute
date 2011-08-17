@@ -159,8 +159,12 @@
 			if (NOT variables.methods AND StructKeyExists(arguments, "methods"))
 				StructDelete(arguments, "methods");
 			
-			// add scoped path to pattern
-			if (StructKeyExists(scopeStack[1], "path"))
+			// add shallow path to pattern
+			if ($shallow())
+				arguments.pattern = $shallowPathForCall() & "/" & arguments.pattern;
+			
+			// or, add scoped path to pattern
+			else if (StructKeyExists(scopeStack[1], "path"))
 				arguments.pattern = scopeStack[1].path & "/" & arguments.pattern;
 			
 			// if both module and controller are set, combine them
@@ -174,11 +178,11 @@
 				case "resource":
 				case "resources":
 				case "collection":
-					loc.nameStruct = [loc.name, $scopeName(), $collection()];
+					loc.nameStruct = [loc.name, iif($shallow(), "$shallowNameForCall()", "$scopeName()"), $collection()];
 					break;
 				case "member":
 				case "new":
-					loc.nameStruct = [loc.name, $scopeName(), $member()];
+					loc.nameStruct = [loc.name, iif($shallow(), "$shallowNameForCall()", "$scopeName()"), $member()];
 					break;
 				default:
 					loc.nameStruct = [$scopeName(), $collection(), loc.name];
@@ -269,8 +273,19 @@
 		<cfargument name="path" type="string" required="false" hint="Path prefix" />
 		<cfargument name="module" type="string" required="false" hint="Namespace to append to controllers" />
 		<cfargument name="controller" type="string" required="false" hint="Controller to use in routes" />
+		<cfargument name="shallow" type="boolean" required="false" hint="Turn on shallow resources" />
+		<cfargument name="shallowPath" type="string" required="false" hint="Shallow path prefix" />
+		<cfargument name="shallowName" type="string" required="false" hint="Shallow name prefix" />
 		<cfargument name="$call" type="string" default="scope" />
 		<cfscript>
+			
+			// set shallow path and prefix if not in a resource
+			if (NOT ListFindNoCase("resource,resources", scopeStack[1].$call)) {
+				if (NOT StructKeyExists(arguments, "shallowPath") AND StructKeyExists(arguments, "path"))
+					arguments.shallowPath = arguments.path;
+				if (NOT StructKeyExists(arguments, "shallowName") AND StructKeyExists(arguments, "name"))
+					arguments.shallowName = arguments.name;
+			}
 			
 			// combine path with scope path
 			if (StructKeyExists(scopeStack[1], "path") AND StructKeyExists(arguments, "path"))
@@ -283,6 +298,10 @@
 			// combine name with scope name
 			if (StructKeyExists(arguments, "name") AND StructKeyExists(scopeStack[1], "name"))
 				arguments.name = scopeStack[1].name & capitalize(arguments.name);
+				
+			// combine shallow path with scope shallow path
+			if (StructKeyExists(scopeStack[1], "shallowPath") AND StructKeyExists(arguments, "shallowPath"))
+				arguments.shallowPath = $normalizePath(scopeStack[1].shallowPath & "/" & arguments.shallowPath);
 			
 			// put scope arguments on the stack
 			StructAppend(arguments, scopeStack[1], false);
@@ -318,6 +337,9 @@
 		<cfargument name="plural" type="string" required="false" hint="Override pluralize() result in singular resource" />
 		<cfargument name="only" type="string" default="" hint="List of REST routes to generate" />
 		<cfargument name="except" type="string" default="" hint="List of REST routes not to generate, takes priority over only" />
+		<cfargument name="shallow" type="boolean" required="false" hint="Turn on shallow resources" />
+		<cfargument name="shallowPath" type="string" required="false" hint="Shallow path prefix" />
+		<cfargument name="shallowName" type="string" required="false" hint="Shallow name prefix" />
 		<cfargument name="$call" type="string" default="resource" />
 		<cfargument name="$plural" type="boolean" default="false" />
 		<cfscript>
@@ -394,13 +416,22 @@
 				}
 			}
 			
-			// if parent member found, use as scoped name
-			if (StructKeyExists(scopeStack[1], "member"))
-				loc.args.name = scopeStack[1].member;
+			// if parent resource is found
+			if (StructKeyExists(scopeStack[1], "member")) {
 				
-			// use parent resource nested path if found
-			if (StructKeyExists(scopeStack[1], "nestedPath"))
+				// use member and nested path
+				loc.args.name = scopeStack[1].member;
 				loc.args.path = scopeStack[1].nestedPath;
+				
+				// store parent resource (and avoid too deep nesting)
+				loc.args.parentResource = Duplicate(scopeStack[1]);
+				if (StructKeyExists(loc.args.parentResource, "parentResource"))
+					StructDelete(loc.args.parentResource, "parentResource");
+			}
+			
+			// pass along shallow route option
+			if (StructKeyExists(arguments, "shallow"))
+				loc.args.shallow = arguments.shallow;
 			
 			// scope the resource
 			scope($call=arguments.$call, argumentCollection=loc.args);
@@ -461,5 +492,45 @@
 	
 	<cffunction name="$scopeName" returntype="string" access="private" hint="Get scoped route name if defined">
 		<cfreturn iif(StructKeyExists(scopeStack[1], "name"), "scopeStack[1].name", DE("")) />
+	</cffunction>
+	
+	<cffunction name="$shallow" returntype="boolean" access="private" hint="See if resource is shallow">
+		<cfreturn StructKeyExists(scopeStack[1], "shallow") AND scopeStack[1].shallow EQ true />
+	</cffunction>
+	
+	<cffunction name="$shallowName" returntype="string" access="private" hint="Get scoped shallow route name if defined">
+		<cfreturn iif(StructKeyExists(scopeStack[1], "shallowName"), "scopeStack[1].shallowName", DE("")) />
+	</cffunction>
+	
+	<cffunction name="$shallowPath" returntype="string" access="private" hint="Get scoped shallow path if defined">
+		<cfreturn iif(StructKeyExists(scopeStack[1], "shallowPath"), "scopeStack[1].shallowPath", DE("")) />
+	</cffunction>
+	
+	<cffunction name="$shallowNameForCall" returntype="string" access="private">
+		<cfscript>
+			if (ListFindNoCase("collection,new", scopeStack[1].$call) AND StructKeyExists(scopeStack[1], "parentResource"))
+				return ListAppend($shallowName(), scopeStack[1].parentResource.member);
+			return $shallowName();
+		</cfscript>
+		<cfreturn iif(StructKeyExists(scopeStack[1], "shallowPath"), "scopeStack[1].shallowPath", DE("")) />
+	</cffunction>
+	
+	<cffunction name="$shallowPathForCall" returntype="string" access="private">
+		<cfscript>
+			var path = "";
+			switch (scopeStack[1].$call) {
+				case "member":
+					path = scopeStack[1].memberPath;
+					break;
+				case "collection":
+				case "new":
+					if (StructKeyExists(scopeStack[1], "parentResource"))
+						path = scopeStack[1].parentResource.nestedPath;
+					path &= "/" & scopeStack[1].collectionPath;
+					break;
+			}
+			return $shallowPath() & "/" & path;
+		</cfscript>
+		<cfreturn iif(StructKeyExists(scopeStack[1], "shallowPath"), "scopeStack[1].shallowPath", DE("")) />
 	</cffunction>
 </cfcomponent>
