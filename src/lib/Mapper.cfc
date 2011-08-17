@@ -49,7 +49,7 @@
 						post(pattern="", action="create");
 				end();
 				if (ListFindNoCase(scopeStack[1].actions, "new")) {
-					scope($call="new");
+					scope(path=scopeStack[1].collectionPath, $call="new");
 						$get(pattern="new", action="new", name="new");
 					end();
 				}
@@ -72,7 +72,7 @@
 					end();
 				}
 				if (ListFind(scopeStack[1].actions, "new")) {
-					scope($call="new");
+					scope(path=scopeStack[1].memberPath, $call="new");
 						$get(pattern="new", action="new", name="new");
 					end();
 				}
@@ -99,19 +99,13 @@
 	---------------------->
 	
 	<cffunction name="match" returntype="struct" access="public" hint="Match a url">
-		<cfargument name="name" type="string" required="false" />
-		<cfargument name="pattern" type="string" required="false" />
-		<cfargument name="to" type="string" required="false" />
-		<cfargument name="methods" type="string" required="false" />
-		<cfargument name="module" type="string" required="false" />
+		<cfargument name="name" type="string" required="false" hint="Name for route. Used for path helpers." />
+		<cfargument name="pattern" type="string" required="false" hint="Pattern to match for route" />
+		<cfargument name="to" type="string" required="false" hint="Set controller##action for route" />
+		<cfargument name="methods" type="string" required="false" hint="HTTP verbs that match route" />
+		<cfargument name="module" type="string" required="false" hint="Namespace to append to controller" />
 		<cfscript>
 			var loc = {};
-			
-			// named route variables (initially empty)
-			loc.scopeName = "";
-			loc.memberName = "";
-			loc.collectionName = "";
-			loc.name = "";
 			
 			// use scoped controller if found
 			if (StructKeyExists(scopeStack[1], "controller") AND NOT StructKeyExists(arguments, "controller"))
@@ -132,7 +126,8 @@
 				StructDelete(arguments, "to");
 			}
 			
-			// pull name from arguments if it exists
+			// pull route name from arguments if it exists
+			loc.name = "";
 			if (StructKeyExists(arguments, "name")) {
 				loc.name = arguments.name;
 				
@@ -161,40 +156,25 @@
 			if (StructKeyExists(scopeStack[1], "path"))
 				arguments.pattern = scopeStack[1].path & "/" & arguments.pattern;
 			
-			// force leading slashes, remove trailing and duplicate slashes
-			arguments.pattern = Replace(arguments.pattern, "//", "/", "ALL");
-			arguments.pattern = REReplace(arguments.pattern, "^([^/]+)", "/\1");
-			arguments.pattern = REReplace(arguments.pattern, "([^/]+)/$", "\1");
-			
 			// if both module and controller are set, combine them
 			if (StructKeyExists(arguments, "module") AND StructKeyExists(arguments, "controller")) {
 				arguments.controller = arguments.module & "." & arguments.controller;
 				StructDelete(arguments, "module");
 			}
 			
-			// if we are using resources, use their names in the route name
-			if (StructKeyExists(scopeStack[1], "collection"))
-				loc.collectionName = scopeStack[1].collection;
-			if (StructKeyExists(scopeStack[1], "member"))
-				loc.memberName = scopeStack[1].member;
-			
-			// use scoped name if it is set
-			if (StructKeyExists(scopeStack[1], "name"))
-				loc.scopeName = scopeStack[1].name;
-			
 			// build named routes in correct order according to rails conventions
 			switch (scopeStack[1].$call) {
 				case "resource":
 				case "resources":
 				case "collection":
-					loc.nameStruct = [loc.name, loc.scopeName, loc.collectionName];
+					loc.nameStruct = [loc.name, $scopeName(), $collection()];
 					break;
 				case "member":
 				case "new":
-					loc.nameStruct = [loc.name, loc.scopeName, loc.memberName];
+					loc.nameStruct = [loc.name, $scopeName(), $member()];
 					break;
 				default:
-					loc.nameStruct = [loc.scopeName, loc.collectionName, loc.name];
+					loc.nameStruct = [$scopeName(), $collection(), loc.name];
 			}
 			
 			// transform array into named route
@@ -278,15 +258,16 @@
 	-------------->
 	
 	<cffunction name="scope" returntype="struct" access="public" hint="Set certain parameters for future calls">
-		<cfargument name="name" type="string" required="false" />
-		<cfargument name="path" type="string" required="false" />
-		<cfargument name="module" type="string" required="false" />
+		<cfargument name="name" type="string" required="false" hint="Named route prefix" />
+		<cfargument name="path" type="string" required="false" hint="Path prefix" />
+		<cfargument name="module" type="string" required="false" hint="Namespace to append to controllers" />
+		<cfargument name="controller" type="string" required="false" hint="Controller to use in routes" />
 		<cfargument name="$call" type="string" default="scope" />
 		<cfscript>
 			
 			// combine path with scope path
 			if (StructKeyExists(scopeStack[1], "path") AND StructKeyExists(arguments, "path"))
-				arguments.path = Replace(scopeStack[1].path & "/" & arguments.path, "//", "/", "ALL");
+				arguments.path = $normalizePath(scopeStack[1].path & "/" & arguments.path);
 			
 			// combine module with scope module
 			if (StructKeyExists(scopeStack[1], "module") AND StructKeyExists(arguments, "module"))
@@ -307,18 +288,14 @@
 		<cfargument name="module" type="string" required="true" />
 		<cfargument name="name" type="string" default="#arguments.module#" />
 		<cfargument name="path" type="string" default="#hyphenize(arguments.module)#" />
-		<cfscript>
-			return scope(argumentCollection=arguments, $call="namespace");
-		</cfscript>
+		<cfreturn scope(argumentCollection=arguments, $call="namespace") />
 	</cffunction>
 	
 	<cffunction name="$controller" returntype="struct" access="public" hint="Set up controller for future calls">
 		<cfargument name="controller" type="string" required="true" />
 		<cfargument name="name" type="string" default="#arguments.controller#" />
 		<cfargument name="path" type="string" default="#hyphenize(arguments.controller)#" />
-		<cfscript>
-			return scope(argumentCollection=arguments, $call="controller");
-		</cfscript>
+		<cfreturn scope(argumentCollection=arguments, $call="controller") />
 	</cffunction>
 	
 	<!---------------
@@ -331,13 +308,16 @@
 		<cfargument name="controller" type="string" required="false" hint="Override controller used by resource" />
 		<cfargument name="singular" type="string" required="false" hint="Override singularize() result in plural resources" />
 		<cfargument name="plural" type="string" required="false" hint="Override pluralize() result in singular resource" />
+		<cfargument name="only" type="string" default="" hint="List of REST routes to generate" />
+		<cfargument name="except" type="string" default="" hint="List of REST routes not to generate, takes priority over only" />
 		<cfargument name="$call" type="string" default="resource" />
 		<cfargument name="$plural" type="boolean" default="false" />
-		<cfargument name="only" type="string" default="" hint="Use to specify REST routes to be generated" />
-		<cfargument name="except" type="string" default="" hint="Use to specify REST routes to NOT be generated, takes priority over only" />
 		<cfscript>
 			var loc = {};
 			loc.args = {};
+			
+			// turn name into a path
+			loc.path = hyphenize(arguments.name);
 			
 			// if plural resource
 			if (arguments.$plural) {
@@ -347,10 +327,10 @@
 					arguments.singular = singularize(arguments.name);
 				arguments.plural = arguments.name;
 				
-				// set collection, member path, and nested path
+				// set collection and scoped paths
 				loc.args.collection = arguments.plural;
-				loc.args.nestedPath = "[#arguments.singular#Key]";
-				loc.args.memberPath = "[key]";
+				loc.args.nestedPath = "#loc.path#/[#arguments.singular#Key]";
+				loc.args.memberPath = "#loc.path#/[key]";
 				
 				// for uncountable plurals, append "Index"
 				if (arguments.singular EQ arguments.plural)
@@ -367,9 +347,10 @@
 				if (NOT StructKeyExists(arguments, "plural"))
 					arguments.plural = pluralize(arguments.name);
 				
-				// set collection and member path
+				// set collection and scoped paths
 				loc.args.collection = arguments.singular;
-				loc.args.memberPath = "";
+				loc.args.memberPath = loc.path;
+				loc.args.nestedPath = loc.path;
 				
 				// setup loc.args.actions
 				loc.args.actions = "new,create,show,edit,update,delete";
@@ -377,6 +358,9 @@
 			
 			// set member name
 			loc.args.member = arguments.singular;
+			
+			// set collection path
+			loc.args.collectionPath = loc.path;
 			
 			// consider only / except REST routes for resources
 			// allow arguments.only to override loc.args.only
@@ -388,7 +372,7 @@
 				loc.except = ListToArray(arguments.except);
 				loc.iEnd = ArrayLen(loc.except);
 				for (loc.i=1; loc.i LTE loc.iEnd; loc.i++)
-					loc.args.actions = ReReplace(loc.args.actions, "\b#loc.except[loc.i]#\b(,?|$)", "");
+					loc.args.actions = REReplace(loc.args.actions, "\b#loc.except[loc.i]#\b(,?|$)", "");
 			}
 			
 			// if controller name was passed, use it
@@ -405,16 +389,13 @@
 				}
 			}
 			
-			// prepend to member and collection if member is scoped
-			if (StructKeyExists(scopeStack[1], "member")) {
-				loc.args.member = scopeStack[1].member & capitalize(loc.args.member);
-				loc.args.collection = scopeStack[1].member & capitalize(loc.args.collection);
-			}
+			// if parent member found, use as scoped name
+			if (StructKeyExists(scopeStack[1], "member"))
+				loc.args.name = scopeStack[1].member;
 				
-			// set mapping path, prepending nested path if scoped
-			loc.args.path = hyphenize(arguments.name);
+			// use parent resource nested path if found
 			if (StructKeyExists(scopeStack[1], "nestedPath"))
-				loc.args.path = scopeStack[1].nestedPath & "/" & loc.args.path;
+				loc.args.path = scopeStack[1].nestedPath;
 			
 			// scope the resource
 			scope($call=arguments.$call, argumentCollection=loc.args);
@@ -431,21 +412,15 @@
 	<cffunction name="resources" returntype="struct" access="public" hint="Set up REST plural resource">
 		<cfargument name="name" type="string" required="true" />
 		<cfargument name="nested" type="boolean" default="false" />
-		<cfscript>
-			return resource($plural=true, $call="resources", argumentCollection=arguments);
-		</cfscript>
+		<cfreturn resource($plural=true, $call="resources", argumentCollection=arguments) />
 	</cffunction>
 	
 	<cffunction name="member" returntype="struct" access="public" hint="Apply routes to resource member">
-		<cfscript>
-			return scope(path=scopeStack[1].memberPath, $call="member");
-		</cfscript>
+		<cfreturn scope(path=scopeStack[1].memberPath, $call="member") />
 	</cffunction>
 	
 	<cffunction name="collection" returntype="struct" access="public" hint="Apply routes to resource collection">
-		<cfscript>
-			return scope($call="collection");
-		</cfscript>
+		<cfreturn scope(path=scopeStack[1].collectionPath, $call="collection") />
 	</cffunction>
 	
 	<!---------------------
@@ -455,16 +430,31 @@
 	<cffunction name="$addRoute" returntype="void" access="private" hint="Add route to cfwheels, removing useless params">
 		<cfscript>
 					
-			// remove controller argument if [controller] is a route variable
+			// remove controller and action if they are route variables
 			if (Find("[controller]", arguments.pattern) AND StructKeyExists(arguments, "controller"))
 				StructDelete(arguments, "controller");
-					
-			// remove action argument if [action] is a route variable
 			if (Find("[action]", arguments.pattern) AND StructKeyExists(arguments, "action"))
 				StructDelete(arguments, "action");
 				
-			// add route to cfwheels
-			addRoute(argumentCollection=arguments);
+			// add route to cfwheels with normalized path
+			addRoute(argumentCollection=arguments, pattern=$normalizePath(arguments.pattern));
 		</cfscript>
+	</cffunction>
+	
+	<cffunction name="$normalizePath" returntype="string" access="private" hint="Force leading slashes, remove trailing and duplicate slashes">
+		<cfargument name="path" type="string" required="true" />
+		<cfreturn "/" & Replace(REReplace(arguments.path, "(^/+|/+$)", "", "ALL"), "//", "/", "ALL") />
+	</cffunction>
+	
+	<cffunction name="$member" returntype="string" access="private" hint="Get member name if defined">
+		<cfreturn iif(StructKeyExists(scopeStack[1], "member"), "scopeStack[1].member", DE("")) />
+	</cffunction>
+	
+	<cffunction name="$collection" returntype="string" access="private" hint="Get collection name if defined">
+		<cfreturn iif(StructKeyExists(scopeStack[1], "collection"), "scopeStack[1].collection", DE("")) />
+	</cffunction>
+	
+	<cffunction name="$scopeName" returntype="string" access="private" hint="Get scoped route name if defined">
+		<cfreturn iif(StructKeyExists(scopeStack[1], "name"), "scopeStack[1].name", DE("")) />
 	</cffunction>
 </cfcomponent>
