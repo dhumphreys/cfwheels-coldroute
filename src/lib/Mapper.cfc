@@ -429,9 +429,13 @@
 					StructDelete(loc.args.parentResource, "parentResource");
 			}
 			
-			// pass along shallow route option
+			// pass along shallow route options
 			if (StructKeyExists(arguments, "shallow"))
 				loc.args.shallow = arguments.shallow;
+			if (StructKeyExists(arguments, "shallowPath"))
+				loc.args.shallowPath = arguments.shallowPath;
+			if (StructKeyExists(arguments, "shallowName"))
+				loc.args.shallowName = arguments.shallowName;
 			
 			// scope the resource
 			scope($call=arguments.$call, argumentCollection=loc.args);
