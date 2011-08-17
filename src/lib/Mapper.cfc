@@ -104,8 +104,15 @@
 		<cfargument name="to" type="string" required="false" hint="Set controller##action for route" />
 		<cfargument name="methods" type="string" required="false" hint="HTTP verbs that match route" />
 		<cfargument name="module" type="string" required="false" hint="Namespace to append to controller" />
+		<cfargument name="on" type="string" default="" hint="Created resource route under 'member' or 'collection'" />
 		<cfscript>
 			var loc = {};
+			
+			// evaluate match on member or collection
+			if (arguments.on EQ "member")
+				return member().match(argumentCollection=arguments, on="").end();
+			if (arguments.on EQ "collection")
+				return collection().match(argumentCollection=arguments, on="").end();
 			
 			// use scoped controller if found
 			if (StructKeyExists(scopeStack[1], "controller") AND NOT StructKeyExists(arguments, "controller"))
