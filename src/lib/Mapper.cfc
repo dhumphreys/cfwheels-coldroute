@@ -496,8 +496,8 @@
 		<cfscript>
 			var loc = {};
 			loc.regex = REReplace(arguments.route.pattern, "([.])", "\\\1", "ALL");
-			loc.regex = REReplace(loc.regex, "\[\w+\]", "([^/]+)", "ALL");
-			return REReplace(loc.regex, "^/*(.+)/*$", "^/*\1/*$");
+			loc.regex = REReplace(loc.regex, "\[\w+\]", "([^./]+)", "ALL");
+			return REReplace(loc.regex, "^/*(.*)/*$", "^\1/?$");
 		</cfscript>
 	</cffunction>
 	

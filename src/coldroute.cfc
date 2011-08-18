@@ -158,18 +158,14 @@
 			// loop over wheels routes
 			loc.iEnd = ArrayLen(application.wheels.routes);
 			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-				loc.format = false;
-				
-				// check for a supplied format parameter
-				if (StructKeyExists(application.wheels.routes[loc.i], "format"))
-					loc.format = application.wheels.routes[loc.i].format;
+				loc.route = application.wheels.routes[loc.i];
 				
 				// if method doesn't match, skip this route
-				if (StructKeyExists(application.wheels.routes[loc.i], "methods") AND NOT ListFindNoCase(application.wheels.routes[loc.i].methods, loc.requestMethod))
+				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, loc.requestMethod))
 					continue;
 				
-				// if route matches, set it for return
-				if (REFind(application.wheels.routes[loc.i].regex, arguments.path)) {
+				// if route matches regular expression, set it for return
+				if (REFindNoCase(loc.route.regex, arguments.path) OR (arguments.path EQ "" AND loc.route.pattern EQ "/")) {
 					loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
 					break;
 				}
@@ -182,6 +178,22 @@
 		<cfreturn loc.returnValue />
 	</cffunction>
 	
+	<cffunction name="$mergeRoutePattern" returntype="struct" access="public" output="false" mixin="dispatch,controller" hint="Pull route variables out of path">
+		<cfargument name="params" type="struct" required="true">
+		<cfargument name="route" type="struct" required="true">
+		<cfargument name="path" type="string" required="true">
+		<cfscript>
+			var loc = {};
+			loc.matches = REFindNoCase(arguments.route.regex, arguments.path, 1, true);
+			loc.iEnd = ArrayLen(loc.matches.pos);
+			for (loc.i = 2; loc.i LTE loc.iEnd; loc.i++) {
+				loc.key = ListGetAt(arguments.route.variables, loc.i - 1);
+				arguments.params[loc.key] = Mid(arguments.path, loc.matches.pos[loc.i], loc.matches.len[loc.i]);
+			}
+			return arguments.params;
+		</cfscript>
+	</cffunction>
+
 	<!--- TODO: patch this in wheels code --->
 	<cffunction name="$getPathFromRequest" returntype="string" access="public" hint="Don't split incoming paths at `.` like Wheels does">
 		<cfargument name="pathInfo" type="string" required="true">
