@@ -297,7 +297,6 @@
 				// loop over variables needed for route
 				loc.iEnd = ArrayLen(loc.vars);
 				for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-					loc.value = false;
 					loc.key = loc.vars[loc.i];
 					
 					// try to find the correct argument
@@ -309,22 +308,31 @@
 						StructDelete(arguments, loc.i);
 					}
 						
-					// use the value if it is simple
-					if (IsSimpleValue(loc.value) AND loc.value NEQ false) {
-						arguments[loc.key] = loc.value;
-					} else if (IsObject(loc.value)) {
+					// if value was passed in
+					if (StructKeyExists(loc, "value")) {
 						
-						// if the passed in object is new, link to the plural REST route instead
-						if (loc.value.isNew()) {
-							if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(arguments.route))) {
-								arguments.route = pluralize(arguments.route);
-								break;
-							}
+						// just assign simple values
+						if (NOT IsObject(loc.value)) {
+							arguments[loc.key] = loc.value;
 							
-						// otherwise, use the Model#toParam method
+						// if object, do special processing
 						} else {
-							arguments[loc.key] = loc.value.toParam();
+							
+							// if the passed in object is new, link to the plural REST route instead
+							if (loc.value.isNew()) {
+								if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(arguments.route))) {
+									arguments.route = pluralize(arguments.route);
+									break;
+								}
+								
+							// otherwise, use the Model#toParam method
+							} else {
+								arguments[loc.key] = loc.value.toParam();
+							}
 						}
+						
+						// remove value for next loop
+						StructDelete(loc, "value");
 					}
 				}
 			}
