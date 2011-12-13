@@ -110,6 +110,7 @@
 		<cfargument name="methods" type="string" required="false" hint="HTTP verbs that match route" />
 		<cfargument name="module" type="string" required="false" hint="Namespace to append to controller" />
 		<cfargument name="on" type="string" default="" hint="Created resource route under 'member' or 'collection'" />
+		<cfargument name="constraints" type="struct" default="#StructNew()#" />
 		<cfscript>
 			var loc = {};
 			
@@ -164,6 +165,10 @@
 			if (NOT variables.methods AND StructKeyExists(arguments, "methods"))
 				StructDelete(arguments, "methods");
 			
+			// use constraints from stack
+			if (StructKeyExists(scopeStack[1], "constraints"))
+				StructAppend(arguments.constraints, scopeStack[1].constraints, false);
+			
 			// add shallow path to pattern
 			if ($shallow())
 				arguments.pattern = $shallowPathForCall() & "/" & arguments.pattern;
@@ -203,7 +208,7 @@
 			if (loc.name NEQ "")
 				arguments.name = loc.name;
 			
-			// handle optional arguments
+			// handle optional pattern segments
 			if (arguments.pattern CONTAINS "(") {
 				
 				// confirm nesting of optional segments
@@ -281,6 +286,7 @@
 		<cfargument name="shallow" type="boolean" required="false" hint="Turn on shallow resources" />
 		<cfargument name="shallowPath" type="string" required="false" hint="Shallow path prefix" />
 		<cfargument name="shallowName" type="string" required="false" hint="Shallow name prefix" />
+		<cfargument name="constraints" type="struct" required="false" hint="Variable patterns to use for matching" />
 		<cfargument name="$call" type="string" default="scope" />
 		<cfscript>
 			
@@ -307,6 +313,10 @@
 			// combine shallow path with scope shallow path
 			if (StructKeyExists(scopeStack[1], "shallowPath") AND StructKeyExists(arguments, "shallowPath"))
 				arguments.shallowPath = normalizePattern(scopeStack[1].shallowPath & "/" & arguments.shallowPath);
+				
+			// copy existing constraints if they were previously set
+			if (StructKeyExists(scopeStack[1], "constraints") AND StructKeyExists(arguments, "constraints"))
+				StructAppend(arguments.constraints, scopeStack[1].constraints, false);
 			
 			// put scope arguments on the stack
 			StructAppend(arguments, scopeStack[1], false);
@@ -329,6 +339,10 @@
 		<cfreturn scope(argumentCollection=arguments, $call="controller") />
 	</cffunction>
 	
+	<cffunction name="constraints" returntype="struct" access="public" hint="Set variable patterns to use for matching">
+		<cfreturn scope(constraints=arguments, $call="constraints") />
+	</cffunction>
+	
 	<!---------------
 	--- Resources ---
 	---------------->
@@ -345,6 +359,7 @@
 		<cfargument name="shallow" type="boolean" required="false" hint="Turn on shallow resources" />
 		<cfargument name="shallowPath" type="string" required="false" hint="Shallow path prefix" />
 		<cfargument name="shallowName" type="string" required="false" hint="Shallow name prefix" />
+		<cfargument name="constraints" type="struct" required="false" hint="Variable patterns to use for matching" />
 		<cfargument name="$call" type="string" default="resource" />
 		<cfargument name="$plural" type="boolean" default="false" />
 		<cfscript>
@@ -442,6 +457,10 @@
 			if (StructKeyExists(arguments, "shallowName"))
 				loc.args.shallowName = arguments.shallowName;
 			
+			// pass along constraints
+			if (StructKeyExists(arguments, "constraints"))
+				loc.args.constraints = arguments.constraints;
+			
 			// scope the resource
 			scope($call=arguments.$call, argumentCollection=loc.args);
 				
@@ -520,7 +539,7 @@
 				
 			// normalize pattern, convert to regex, and strip out variable names
 			arguments.pattern = normalizePattern(arguments.pattern);
-			arguments.regex = patternToRegex(arguments.pattern);
+			arguments.regex = patternToRegex(arguments.pattern, arguments.constraints);
 			arguments.variables = stripRouteVariables(arguments.pattern);
 				
 			// add route to cfwheels
