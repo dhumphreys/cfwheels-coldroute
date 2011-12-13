@@ -269,10 +269,13 @@
 	<cffunction name="wildcard" returntype="struct" access="public" hint="Special wildcard matching">
 		<cfargument name="action" default="index" hint="Default action for wildcard patterns" />
 		<cfscript>
-			if (StructKeyExists(scopeStack[1], "controller"))
-				match(name="wildcard", pattern="[action](/[key])", action=arguments.action);
-			else
-				match(name="wildcard", pattern="[controller](/[action](/[key]))", action=arguments.action);
+			if (StructKeyExists(scopeStack[1], "controller")) {
+				match(name="wildcard", pattern="[action]/[key](.[format])", action=arguments.action);
+				match(name="wildcard", pattern="[action](.[format])", action=arguments.action);
+			} else {
+				match(name="wildcard", pattern="[controller]/[action]/[key](.[format])", action=arguments.action);
+				match(name="wildcard", pattern="[controller](/[action](.[format]))", action=arguments.action);
+			}
 			return this;
 		</cfscript>
 	</cffunction>
