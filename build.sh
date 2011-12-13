@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # set version
-VERSION=0.1.1
+VERSION=0.2
 
 # set file name
 ZIPFILE=coldroute-$VERSION.zip
