@@ -372,6 +372,24 @@
 			var loc = {};
 			loc.args = {};
 			
+			// if name is a list, add each of the resources in the list
+			if (arguments.name CONTAINS ",") {
+				
+				// error if the user asked for a nested resource
+				if (arguments.nested)
+					$throw(type="Wheels.InvalidResource", message="Multiple resources in same declaration cannot be nested.");
+					
+				// remove path so new resources do not break
+				StructDelete(arguments, "path");
+					
+				// build each new resource
+				loc.names = ListToArray(arguments.name);
+				loc.iEnd = ArrayLen(loc.names);
+				for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++)
+					resource(name=loc.names[loc.i], argumentCollection=arguments);
+				return this;
+			}
+			
 			// if plural resource
 			if (arguments.$plural) {
 				
