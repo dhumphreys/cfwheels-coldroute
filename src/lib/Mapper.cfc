@@ -11,6 +11,11 @@
 			variables.restful = arguments.restful;
 			variables.methods = arguments.restful OR arguments.methods;
 			
+			// set up default variable constraints
+			variables.constraints = {};
+			variables.constraints["format"] = "\w+";
+			variables.constraints["controller"] = "[^/]+";
+			
 			// fix naming collision with cfwheels get() and controller() methods
 			this.get = variables.$get;
 			this.controller = variables.$controller;
@@ -474,10 +479,23 @@
 	
 	<cffunction name="patternToRegex" returntype="string" access="public" hint="Transform route pattern into regular expression">
 		<cfargument name="pattern" type="string" required="true" />
+		<cfargument name="constraints" type="struct" default="#StructNew()#" />
 		<cfscript>
 			var loc = {};
+			
+			// escape any dots in pattern, and further mask pattern variables
+			// NOTE: this keeps constraint patterns from being replaced twice
 			loc.regex = REReplace(arguments.pattern, "([.])", "\\\1", "ALL");
-			loc.regex = REReplace(loc.regex, "\[\w+\]", "([^./]+)", "ALL");
+			loc.regex = REReplace(loc.regex, "\[(\w+)\]", ":::\1:::", "ALL");
+			
+			// replace known variable keys using constraints
+			loc.constraints = StructCopy(arguments.constraints);
+			StructAppend(loc.constraints, variables.constraints, false);
+			for (loc.key in loc.constraints)
+				loc.regex = REReplaceNoCase(loc.regex, ":::#loc.key#:::", "(#loc.constraints[loc.key]#)", "ALL");
+			
+			// replace remaining variables with default regex
+			loc.regex = REReplace(loc.regex, ":::\w+:::", "([^./]+)", "ALL");
 			return REReplace(loc.regex, "^/*(.*)/*$", "^\1/?$");
 		</cfscript>
 	</cffunction>
