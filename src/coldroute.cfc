@@ -164,6 +164,10 @@
 				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, loc.requestMethod))
 					continue;
 				
+				// make sure route has been converted to regex
+				if (NOT StructKeyExists(loc.route, "regex"))
+					loc.route.regex = application.wheels.coldroute.patternToRegex(loc.route.pattern);
+				
 				// if route matches regular expression, set it for return
 				if (REFindNoCase(loc.route.regex, arguments.path) OR (arguments.path EQ "" AND loc.route.pattern EQ "/")) {
 					loc.returnValue = Duplicate(application.wheels.routes[loc.i]);

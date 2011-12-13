@@ -289,7 +289,7 @@
 			
 			// combine path with scope path
 			if (StructKeyExists(scopeStack[1], "path") AND StructKeyExists(arguments, "path"))
-				arguments.path = $normalizePath(scopeStack[1].path & "/" & arguments.path);
+				arguments.path = normalizePattern(scopeStack[1].path & "/" & arguments.path);
 			
 			// combine module with scope module
 			if (StructKeyExists(scopeStack[1], "module") AND StructKeyExists(arguments, "module"))
@@ -301,7 +301,7 @@
 				
 			// combine shallow path with scope shallow path
 			if (StructKeyExists(scopeStack[1], "shallowPath") AND StructKeyExists(arguments, "shallowPath"))
-				arguments.shallowPath = $normalizePath(scopeStack[1].shallowPath & "/" & arguments.shallowPath);
+				arguments.shallowPath = normalizePattern(scopeStack[1].shallowPath & "/" & arguments.shallowPath);
 			
 			// put scope arguments on the stack
 			StructAppend(arguments, scopeStack[1], false);
@@ -463,6 +463,30 @@
 		<cfreturn scope(path=scopeStack[1].collectionPath, $call="collection") />
 	</cffunction>
 	
+	<!---------------
+	--- Utilities ---
+	---------------->
+	
+	<cffunction name="normalizePattern" returntype="string" access="public" hint="Force leading slashes, remove trailing and duplicate slashes">
+		<cfargument name="pattern" type="string" required="true" />
+		<cfreturn "/" & Replace(REReplace(arguments.pattern, "(^/+|/+$)", "", "ALL"), "//", "/", "ALL") />
+	</cffunction>
+	
+	<cffunction name="patternToRegex" returntype="string" access="public" hint="Transform route pattern into regular expression">
+		<cfargument name="pattern" type="string" required="true" />
+		<cfscript>
+			var loc = {};
+			loc.regex = REReplace(arguments.pattern, "([.])", "\\\1", "ALL");
+			loc.regex = REReplace(loc.regex, "\[\w+\]", "([^./]+)", "ALL");
+			return REReplace(loc.regex, "^/*(.*)/*$", "^\1/?$");
+		</cfscript>
+	</cffunction>
+	
+	<cffunction name="stripRouteVariables" returntype="string" access="public" hint="Pull list of variables out of route pattern">
+		<cfargument name="pattern" type="string" required="true" />
+		<cfreturn REReplace(ArrayToList(REMatch("\[(\w+)\]", arguments.pattern)), "[\[\]]", "", "ALL") />
+	</cffunction>
+	
 	<!---------------------
 	--- Private Methods ---
 	---------------------->
@@ -477,33 +501,13 @@
 				StructDelete(arguments, "action");
 				
 			// normalize pattern, convert to regex, and strip out variable names
-			arguments.pattern = $normalizePath(arguments.pattern);
-			arguments.regex = $routeRegex(arguments);
-			arguments.variables = $stripRouteVariables(arguments);
+			arguments.pattern = normalizePattern(arguments.pattern);
+			arguments.regex = patternToRegex(arguments.pattern);
+			arguments.variables = stripRouteVariables(arguments.pattern);
 				
 			// add route to cfwheels
 			ArrayAppend(application.wheels.routes, arguments);
 		</cfscript>
-	</cffunction>
-	
-	<cffunction name="$normalizePath" returntype="string" access="private" hint="Force leading slashes, remove trailing and duplicate slashes">
-		<cfargument name="path" type="string" required="true" />
-		<cfreturn "/" & Replace(REReplace(arguments.path, "(^/+|/+$)", "", "ALL"), "//", "/", "ALL") />
-	</cffunction>
-	
-	<cffunction name="$routeRegex" returntype="string" access="private" hint="Transform route pattern into regular expression">
-		<cfargument name="route" type="struct" required="true" />
-		<cfscript>
-			var loc = {};
-			loc.regex = REReplace(arguments.route.pattern, "([.])", "\\\1", "ALL");
-			loc.regex = REReplace(loc.regex, "\[\w+\]", "([^./]+)", "ALL");
-			return REReplace(loc.regex, "^/*(.*)/*$", "^\1/?$");
-		</cfscript>
-	</cffunction>
-	
-	<cffunction name="$stripRouteVariables" returntype="string" access="private" hint="Pull list of variables out of route pattern">
-		<cfargument name="route" type="struct" required="true" />
-		<cfreturn REReplace(ArrayToList(REMatch("\[(\w+)\]", arguments.route.pattern)), "[\[\]]", "", "ALL") />
 	</cffunction>
 	
 	<cffunction name="$member" returntype="string" access="private" hint="Get member name if defined">
