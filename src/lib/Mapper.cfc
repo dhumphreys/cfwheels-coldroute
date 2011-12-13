@@ -16,6 +16,9 @@
 			variables.constraints["format"] = "\w+";
 			variables.constraints["controller"] = "[^/]+";
 			
+			// set up constraint for globbed routes
+			variables.constraints["\*\w+"] = ".+";
+			
 			// fix naming collision with cfwheels get() and controller() methods
 			this.get = variables.$get;
 			this.controller = variables.$controller;
@@ -505,7 +508,7 @@
 			// escape any dots in pattern, and further mask pattern variables
 			// NOTE: this keeps constraint patterns from being replaced twice
 			loc.regex = REReplace(arguments.pattern, "([.])", "\\\1", "ALL");
-			loc.regex = REReplace(loc.regex, "\[(\w+)\]", ":::\1:::", "ALL");
+			loc.regex = REReplace(loc.regex, "\[(\*?\w+)\]", ":::\1:::", "ALL");
 			
 			// replace known variable keys using constraints
 			loc.constraints = StructCopy(arguments.constraints);
@@ -521,7 +524,7 @@
 	
 	<cffunction name="stripRouteVariables" returntype="string" access="public" hint="Pull list of variables out of route pattern">
 		<cfargument name="pattern" type="string" required="true" />
-		<cfreturn REReplace(ArrayToList(REMatch("\[(\w+)\]", arguments.pattern)), "[\[\]]", "", "ALL") />
+		<cfreturn REReplace(ArrayToList(REMatch("\[\*?(\w+)\]", arguments.pattern)), "[\*\[\]]", "", "ALL") />
 	</cffunction>
 	
 	<!---------------------
