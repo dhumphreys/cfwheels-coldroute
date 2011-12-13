@@ -147,7 +147,6 @@
 		</cflock>
 	</cffunction>
 
-	<!--- logic from restful-routes plugin by James Gibson --->
 	<cffunction name="$findMatchingRoute" mixin="dispatch" returntype="struct" access="public" hint="Help Wheels match routes using path and HTTP method">
 		<cfargument name="path" type="string" required="true" />
 		<cfscript>
@@ -159,64 +158,20 @@
 			// loop over wheels routes
 			loc.iEnd = ArrayLen(application.wheels.routes);
 			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-				loc.format = false;
+				loc.route = application.wheels.routes[loc.i];
 				
-				// check for a supplied format parameter
-				if (StructKeyExists(application.wheels.routes[loc.i], "format"))
-					loc.format = application.wheels.routes[loc.i].format;
-
-				// grab the current route's pattern
-				loc.routeStruct = application.wheels.routes[loc.i];
-				loc.currentRoute = application.wheels.routes[loc.i].pattern;
-
-				// if route pattern is a star, match found
-				if (loc.currentRoute EQ "*") {
-					loc.returnValue = application.wheels.routes[loc.i];
+				// if method doesn't match, skip this route
+				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, loc.requestMethod))
+					continue;
+				
+				// make sure route has been converted to regex
+				if (NOT StructKeyExists(loc.route, "regex"))
+					loc.route.regex = application.wheels.coldroute.patternToRegex(loc.route.pattern);
+				
+				// if route matches regular expression, set it for return
+				if (REFindNoCase(loc.route.regex, arguments.path) OR (arguments.path EQ "" AND loc.route.pattern EQ "/")) {
+					loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
 					break;
-					
-				// if route pattern and path are both 
-				} else if (arguments.path EQ "" AND loc.currentRoute EQ "") {
-					loc.returnValue = application.wheels.routes[loc.i];
-					break;
-					
-				} else {
-					
-					// set up conditions to be met
-					loc.matchMethod = false;
-					loc.matchVariables = true;
-
-					if (ListLen(arguments.path, "/") EQ ListLen(loc.currentRoute, "/") AND loc.currentRoute NEQ "") {
-						
-						// check for matching variables
-						loc.jEnd = ListLen(loc.currentRoute, "/");
-						for (loc.j = 1; loc.j LTE loc.jEnd; loc.j++) {
-							loc.item = ListGetAt(loc.currentRoute, loc.j, "/");
-							loc.thisRoute = ReplaceList(loc.item, "[,]", ",");
-							loc.thisURL = ListGetAt(arguments.path, loc.j, "/");
-							if (Left(loc.item, 1) NEQ "[" AND loc.thisRoute NEQ loc.thisURL)
-								loc.matchVariables = false;
-						}
-
-						// now check to make sure the method is correct, skip this if not definied for the route
-						if (StructKeyExists(loc.routeStruct, "methods")){
-							if (ListFindNoCase(loc.routeStruct.methods, loc.requestMethod))
-								loc.matchMethod = true;
-							
-						// assume that the method is correct if not provided
-						} else {
-							loc.matchMethod = true;
-						}
-
-						// if both method and variables match
-						if (loc.matchMethod AND loc.matchVariables) {
-							
-							// set route to be returned
-							loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
-							if (Len($getFormatFromRequest(pathInfo=arguments.path)) AND NOT IsBoolean(loc.format))
-								loc.returnValue[ReplaceList(loc.format, "[,]", "")] = $getFormatFromRequest(pathInfo=arguments.path);
-							break;
-						}
-					}
 				}
 			}
 			
@@ -227,6 +182,22 @@
 		<cfreturn loc.returnValue />
 	</cffunction>
 	
+	<cffunction name="$mergeRoutePattern" returntype="struct" access="public" output="false" mixin="dispatch,controller" hint="Pull route variables out of path">
+		<cfargument name="params" type="struct" required="true">
+		<cfargument name="route" type="struct" required="true">
+		<cfargument name="path" type="string" required="true">
+		<cfscript>
+			var loc = {};
+			loc.matches = REFindNoCase(arguments.route.regex, arguments.path, 1, true);
+			loc.iEnd = ArrayLen(loc.matches.pos);
+			for (loc.i = 2; loc.i LTE loc.iEnd; loc.i++) {
+				loc.key = ListGetAt(arguments.route.variables, loc.i - 1);
+				arguments.params[loc.key] = Mid(arguments.path, loc.matches.pos[loc.i], loc.matches.len[loc.i]);
+			}
+			return arguments.params;
+		</cfscript>
+	</cffunction>
+
 	<!--- TODO: patch this in wheels code --->
 	<cffunction name="$getPathFromRequest" returntype="string" access="public" hint="Don't split incoming paths at `.` like Wheels does">
 		<cfargument name="pathInfo" type="string" required="true">
