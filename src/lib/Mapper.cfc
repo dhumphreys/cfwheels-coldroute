@@ -52,47 +52,47 @@
 			if (scopeStack[1].$call EQ "resources") {
 				collection();
 					if (ListFind(scopeStack[1].actions, "index"))
-						$get(pattern="", action="index");
+						$get(pattern="(.[format])", action="index");
 					if (ListFindNoCase(scopeStack[1].actions, "create"))
-						post(pattern="", action="create");
+						post(pattern="(.[format])", action="create");
 				end();
 				if (ListFindNoCase(scopeStack[1].actions, "new")) {
 					scope(path=scopeStack[1].collectionPath, $call="new");
-						$get(pattern="new", action="new", name="new");
+						$get(pattern="new(.[format])", action="new", name="new");
 					end();
 				}
 				member();
 					if (ListFind(scopeStack[1].actions, "edit"))
-						$get(pattern="edit", action="edit", name="edit");
+						$get(pattern="edit(.[format])", action="edit", name="edit");
 					if (ListFind(scopeStack[1].actions, "show"))
-						$get(pattern="", action="show");
+						$get(pattern="(.[format])", action="show");
 					if (ListFind(scopeStack[1].actions, "update"))
-						put(pattern="", action="update");
+						put(pattern="(.[format])", action="update");
 					if (ListFind(scopeStack[1].actions, "delete"))
-						delete(pattern="", action="delete");
+						delete(pattern="(.[format])", action="delete");
 				end();
 				
 			// create singular resource routes
 			} else if (scopeStack[1].$call EQ "resource") {
 				if (ListFind(scopeStack[1].actions, "create")) {
 					collection();
-						post(pattern="", action="create");
+						post(pattern="(.[format])", action="create");
 					end();
 				}
 				if (ListFind(scopeStack[1].actions, "new")) {
 					scope(path=scopeStack[1].memberPath, $call="new");
-						$get(pattern="new", action="new", name="new");
+						$get(pattern="new(.[format])", action="new", name="new");
 					end();
 				}
 				member();
 					if (ListFind(scopeStack[1].actions, "edit"))
-						$get(pattern="edit", action="edit", name="edit");
+						$get(pattern="edit(.[format])", action="edit", name="edit");
 					if (ListFind(scopeStack[1].actions, "show"))
-						$get(pattern="", action="show");
+						$get(pattern="(.[format])", action="show");
 					if (ListFind(scopeStack[1].actions, "update"))
-						put(pattern="", action="update");
+						put(pattern="(.[format])", action="update");
 					if (ListFind(scopeStack[1].actions, "delete"))
-						delete(pattern="", action="delete");
+						delete(pattern="(.[format])", action="delete");
 				end();
 			}
 			
@@ -517,7 +517,12 @@
 	
 	<cffunction name="normalizePattern" returntype="string" access="public" hint="Force leading slashes, remove trailing and duplicate slashes">
 		<cfargument name="pattern" type="string" required="true" />
-		<cfreturn "/" & Replace(REReplace(arguments.pattern, "(^/+|/+$)", "", "ALL"), "//", "/", "ALL") />
+		<cfscript>
+			var loc = {};
+			loc.pattern = REReplace(arguments.pattern, "(^/+|/+$)", "", "ALL");
+			loc.pattern = REReplace(loc.pattern, "/+\.", ".", "ALL");
+			return "/" & Replace(loc.pattern, "//", "/", "ALL");
+		</cfscript>
 	</cffunction>
 	
 	<cffunction name="patternToRegex" returntype="string" access="public" hint="Transform route pattern into regular expression">
