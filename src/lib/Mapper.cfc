@@ -130,7 +130,7 @@
 			// use scoped module if found
 			if (StructKeyExists(scopeStack[1], "module")) {
 				if (StructKeyExists(arguments, "module"))
-					arguments.module &= "." & scopeStack[1].module;
+					arguments.module &= "/" & scopeStack[1].module;
 				else
 					arguments.module = scopeStack[1].module;
 			}
@@ -182,7 +182,7 @@
 			
 			// if both module and controller are set, combine them
 			if (StructKeyExists(arguments, "module") AND StructKeyExists(arguments, "controller")) {
-				arguments.controller = arguments.module & "." & arguments.controller;
+				arguments.controller = arguments.module & "/" & arguments.controller;
 				StructDelete(arguments, "module");
 			}
 			

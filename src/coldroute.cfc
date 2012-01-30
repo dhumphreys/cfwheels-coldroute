@@ -312,4 +312,139 @@
 			return urlFor(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
+    
+    <!---
+		James Gibson:
+		These are the necessary changes to wheels to allow controllers to be nested.
+		I figured they could be refined in the plugin before being commited to core.
+		
+		These changes also fix $ensureControllerAndAction to allow "." in the action
+		and "/" in the controller name.
+	--->
+
+    <cffunction name="$ensureControllerAndAction" mixin="dispatch" returntype="struct" access="public" output="false" hint="ensure that the controller and action params exists and camelized">
+        <cfargument name="params" type="struct" required="true">
+        <cfargument name="route" type="struct" required="true">
+        <cfscript>
+            if (!StructKeyExists(arguments.params, "controller"))
+            {
+                arguments.params.controller = arguments.route.controller;
+            }
+            if (!StructKeyExists(arguments.params, "action"))
+            {
+                arguments.params.action = arguments.route.action;
+            }
+    
+            // filter out illegal characters from the controller and action arguments
+            arguments.params.controller = ReReplace(arguments.params.controller, "[^0-9A-Za-z-_/]", "", "all");
+            arguments.params.action = ReReplace(arguments.params.action, "[^0-9A-Za-z-_\.]", "", "all");
+			
+			if (Find("/", arguments.params.controller))
+				arguments.params.controller = Reverse(ListRest(Reverse(arguments.params.controller), "/")) & "/" & REReplace(ListLast(arguments.params.controller, "/"), "(^|-)([a-z])", "\u\2", "all");
+    		else
+	            arguments.params.controller = REReplace(arguments.params.controller, "(^|-|)([a-z])", "\u\2", "all");
+            
+			arguments.params.action = REReplace(arguments.params.action, "-([a-z])", "\u\1", "all");
+        </cfscript>
+        <cfreturn arguments.params>
+    </cffunction>
+
+    <cffunction name="$createControllerClass" mixin="global" returntype="any" access="public" output="false">
+        <cfargument name="name" type="string" required="true">
+        <cfargument name="controllerPaths" type="string" required="false" default="#application.wheels.controllerPath#">
+        <cfargument name="type" type="string" required="false" default="controller" />
+        <cfscript>
+            var loc = {};
+    
+            // let's allow for multiple controller paths so that plugins can contain controllers
+            // the last path is the one we will instantiate the base controller on if the controller is not found on any of the paths
+            for (loc.i = 1; loc.i lte ListLen(arguments.controllerPaths); loc.i++)
+            {
+                loc.controllerPath = ListGetAt(arguments.controllerPaths, loc.i);
+                loc.fileName = $objectFileName(name=Replace(arguments.name, ".", "/", "all"), objectPath=loc.controllerPath, type=arguments.type);
+    
+                if (loc.fileName != "Controller" || loc.i == ListLen(arguments.controllerPaths))
+                {
+                    application.wheels.controllers[loc.fileName] = $createObjectFromRoot(path=loc.controllerPath, fileName=loc.fileName, method="$initControllerClass", name=arguments.name);
+                    loc.returnValue = application.wheels.controllers[loc.fileName];
+                    break;
+                }
+            }
+        </cfscript>
+        <cfreturn loc.returnValue>
+    </cffunction>
+
+    <cffunction name="$objectFileName" mixin="global" returntype="string" access="public" output="false">
+        <cfargument name="name" type="string" required="true">
+        <cfargument name="objectPath" type="string" required="true">
+        <cfargument name="type" type="string" required="true" hint="Can be either `controller` or `model`." />
+        <cfscript>
+            var loc = {};
+            loc.objectFileExists = false;
+    
+			// the commented out code should no longer be needed as dispatch takes care of properly casing the controller name
+			
+            // if the name contains the delimiter let's capitalize the last element and append it back to the list
+            // if (ListLen(arguments.name, "/") gt 1)
+            //     arguments.name = ListInsertAt(arguments.name, ListLen(arguments.name, "/"), capitalize(ListLast(arguments.name, "/")), "/");
+            // else
+            //    arguments.name = capitalize(arguments.name);
+    
+            // we are going to store the full controller path in the existing / non-existing lists so we can have controllers in multiple places
+            loc.fullObjectPath = arguments.objectPath & "/" & arguments.name;
+    
+            if (!ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase(application.wheels.nonExistingObjectFiles, loc.fullObjectPath))
+            {
+                if (FileExists(ExpandPath("#loc.fullObjectPath#.cfc")))
+                    loc.objectFileExists = true;
+                if (application.wheels.cacheFileChecking)
+                {
+                    if (loc.objectFileExists)
+                        application.wheels.existingObjectFiles = ListAppend(application.wheels.existingObjectFiles, loc.fullObjectPath);
+                    else
+                        application.wheels.nonExistingObjectFiles = ListAppend(application.wheels.nonExistingObjectFiles, loc.fullObjectPath);
+                }
+            }
+            if (ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
+                loc.returnValue = arguments.name;
+            else
+                loc.returnValue = capitalize(arguments.type);
+        </cfscript>
+        <cfreturn loc.returnValue>
+    </cffunction>
+
+    <cffunction name="$initControllerClass" mixin="controller" returntype="any" access="public" output="false">
+        <cfargument name="name" type="string" required="false" default="">
+        <cfscript>
+            variables.$class.name = arguments.name;
+            variables.$class.path = arguments.path;
+    
+			// the name of the controller should reflect it's pathing wherever it's located	
+	
+            // if our name has pathing in it, remove it and add it to the end of of the $class.path variable
+            // if (Find("/", arguments.name))
+            // {
+            //     variables.$class.name = ListLast(arguments.name, "/");
+            //     variables.$class.path = ListAppend(arguments.path, ListDeleteAt(arguments.name, ListLen(arguments.name, "/"), "/"), "/");
+            // }
+    
+            variables.$class.verifications = [];
+            variables.$class.filters = [];
+            variables.$class.cachableActions = [];
+            variables.$class.layout = {};
+            
+            // default the controller to only respond to html
+            variables.$class.formats = {};
+            variables.$class.formats.default = "html";
+            variables.$class.formats.actions = {};
+            variables.$class.formats.existingTemplates = "";
+            variables.$class.formats.nonExistingTemplates = "";
+            
+            $setFlashStorage(get("flashStorage"));
+            if (StructKeyExists(variables, "init"))
+                init();
+        </cfscript>
+        <cfreturn this>
+    </cffunction>
+    
 </cfcomponent>
