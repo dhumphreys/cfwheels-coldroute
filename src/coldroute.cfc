@@ -78,6 +78,40 @@
 			return coreLinkTo(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
+    
+    <cffunction name="startFormTag" mixin="controller" returntype="string" access="public" output="false" hint="Make it easy for the developer to create forms with the proper http method specified">
+    	<cfscript>
+        	var loc = { routeAndMethodMatch = false };
+			var coreStartFormTag = core.startFormTag;
+			
+			// if we don't have a route and method passed in, just return the output from the core method
+			if (!StructKeyExists(arguments, "route") || !StructKeyExists(arguments, "method"))
+				return coreStartFormTag(argumentCollection=arguments);
+			
+			// throw a nice wheels error if the developer passes in a route that was not generated
+			if (application.wheels.showErrorInformation && !StructKeyExists(application.wheels.namedRoutePositions, arguments.route))
+				$throw(type="Wheels", message="Route Not Found", extendedInfo="The route specified `#arguments.route#` does not exist!");
+			
+			// check to see if the route specified has a method to match the one passed in
+			for (loc.position in ListToArray(application.wheels.namedRoutePositions[arguments.route]))
+				if (StructKeyExists(application.wheels.routes[loc.position], "methods") && ListFindNoCase(application.wheels.routes[loc.position].methods, loc.method))
+					loc.routeAndMethodMatch = true;
+			
+			// if we don't have a match, just return the output
+			if (!loc.routeAndMethodMatch)
+				return coreStartFormTag(argumentCollection=arguments);
+			
+			// save the method passed in
+			loc.method = arguments.method;
+			arguments.method = "post";
+			
+			loc.returnValue = coreStartFormTag(argumentCollection=arguments);
+			
+			// make it easy for the developer and add in everything they need
+			loc.returnValue = loc.returnValue & hiddenFieldTag(name="_method", value=loc.method);
+        </cfscript>
+        <cfreturn loc.returnValue />
+    </cffunction>
 	
 	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" output="false" hint="Look up actual route paths instead of providing default Wheels path generation">
 		<cfscript>
