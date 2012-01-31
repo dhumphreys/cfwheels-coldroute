@@ -213,16 +213,6 @@
 		<cfreturn returnValue>
 	</cffunction>
 	
-	<cffunction name="$initControllerClass" mixin="controller" returntype="any" access="public" hint="Automatically call filter to create named route methods">
-		<cfargument name="name" type="string" required="false" default="">
-		<cfscript>
-			var coreInit = core.$initControllerClass;
-			coreInit(argumentCollection=arguments);
-			filters(through="$registerNamedRouteMethods");
-			return this;
-		</cfscript>
-	</cffunction>
-	
 	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public" hint="Filter that sets up named route helper methods">
 		<cfscript>
 			var loc = {};
@@ -443,6 +433,8 @@
             $setFlashStorage(get("flashStorage"));
             if (StructKeyExists(variables, "init"))
                 init();
+				
+			filters(through="$registerNamedRouteMethods");
         </cfscript>
         <cfreturn this>
     </cffunction>
