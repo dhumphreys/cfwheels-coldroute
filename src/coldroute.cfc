@@ -365,8 +365,8 @@
     
                 if (loc.fileName != "Controller" || loc.i == ListLen(arguments.controllerPaths))
                 {
-                    application.wheels.controllers[loc.fileName] = $createObjectFromRoot(path=loc.controllerPath, fileName=loc.fileName, method="$initControllerClass", name=arguments.name);
-                    loc.returnValue = application.wheels.controllers[loc.fileName];
+                    application.wheels.controllers[arguments.name] = $createObjectFromRoot(path=loc.controllerPath, fileName=loc.fileName, method="$initControllerClass", name=arguments.name);
+                    loc.returnValue = application.wheels.controllers[arguments.name];
                     break;
                 }
             }
