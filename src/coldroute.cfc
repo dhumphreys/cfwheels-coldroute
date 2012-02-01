@@ -486,9 +486,9 @@
             if (Left(arguments.$name, 1) == "/")
                 loc.include = loc.include & loc.folderName & "/" & loc.fileName; // Include a file in a sub folder to views
             else if (arguments.$name Contains "/")
-                loc.include = loc.include & "/" & ListChangeDelims(arguments.$controller, '/', '.') & "/" & loc.folderName & "/" & loc.fileName; // Include a file in a sub folder of the current controller
+                loc.include = loc.include & "/" & ListChangeDelims(arguments.$controllerName, '/', '.') & "/" & loc.folderName & "/" & loc.fileName; // Include a file in a sub folder of the current controller
             else
-                loc.include = loc.include & "/" & ListChangeDelims(arguments.$controller, '/', '.') & "/" & loc.fileName; // Include a file in the current controller's view folder
+                loc.include = loc.include & "/" & ListChangeDelims(arguments.$controllerName, '/', '.') & "/" & loc.fileName; // Include a file in the current controller's view folder
         </cfscript>
         <cfreturn LCase(loc.include) />
     </cffunction>
