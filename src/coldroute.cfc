@@ -340,10 +340,11 @@
     <!---
 		James Gibson:
 		These are the necessary changes to wheels to allow controllers to be nested.
-		I figured they could be refined in the plugin before being commited to core.
+		These changes have already been committed to core but have not made it into 
+		a release.
 		
 		These changes also fix $ensureControllerAndAction to allow "." in the action
-		and "/" in the controller name.
+		and controller name.
 	--->
 
     <cffunction name="$ensureControllerAndAction" mixin="dispatch" returntype="struct" access="public" output="false" hint="ensure that the controller and action params exists and camelized">
@@ -360,81 +361,136 @@
             }
     
             // filter out illegal characters from the controller and action arguments
-            arguments.params.controller = ReReplace(arguments.params.controller, "[^0-9A-Za-z-_/]", "", "all");
+            arguments.params.controller = ReReplace(arguments.params.controller, "[^0-9A-Za-z-_\.]", "", "all");
             arguments.params.action = ReReplace(arguments.params.action, "[^0-9A-Za-z-_\.]", "", "all");
 			
-			if (Find("/", arguments.params.controller))
-				arguments.params.controller = Reverse(ListRest(Reverse(arguments.params.controller), "/")) & "/" & REReplace(ListLast(arguments.params.controller, "/"), "(^|-)([a-z])", "\u\2", "all");
-    		else
-	            arguments.params.controller = REReplace(arguments.params.controller, "(^|-|)([a-z])", "\u\2", "all");
-            
+			arguments.params.controller = ListSetAt(arguments.params.controller, ListLen(arguments.params.controller, "."), REReplace(ListLast(arguments.params.controller, "."), "(^|-)([a-z])", "\u\2", "all"), ".");
 			arguments.params.action = REReplace(arguments.params.action, "-([a-z])", "\u\1", "all");
         </cfscript>
         <cfreturn arguments.params>
     </cffunction>
-
-    <cffunction name="$createControllerClass" mixin="global" returntype="any" access="public" output="false">
+    
+    <cffunction name="$initControllerObject" mixin="controller" returntype="any" access="public" output="false">
         <cfargument name="name" type="string" required="true">
-        <cfargument name="controllerPaths" type="string" required="false" default="#application.wheels.controllerPath#">
-        <cfargument name="type" type="string" required="false" default="controller" />
+        <cfargument name="params" type="struct" required="true">
         <cfscript>
             var loc = {};
     
-            // let's allow for multiple controller paths so that plugins can contain controllers
-            // the last path is the one we will instantiate the base controller on if the controller is not found on any of the paths
-            for (loc.i = 1; loc.i lte ListLen(arguments.controllerPaths); loc.i++)
-            {
-                loc.controllerPath = ListGetAt(arguments.controllerPaths, loc.i);
-                loc.fileName = $objectFileName(name=Replace(arguments.name, ".", "/", "all"), objectPath=loc.controllerPath, type=arguments.type);
+            // create a struct for storing request specific data
+            variables.$instance = {};
+            variables.$instance.contentFor = {};
     
-                if (loc.fileName != "Controller" || loc.i == ListLen(arguments.controllerPaths))
+            // include controller specific helper files if they exist, cache the file check for performance reasons
+            loc.helperFileExists = false;
+            if (!ListFindNoCase(application.wheels.existingHelperFiles, arguments.name) && !ListFindNoCase(application.wheels.nonExistingHelperFiles, arguments.name))
+            {
+                if (FileExists(ExpandPath("#application.wheels.viewPath#/#LCase(ListChangeDelims(arguments.name, '/', '.'))#/helpers.cfm")))
+                    loc.helperFileExists = true;
+                if (application.wheels.cacheFileChecking)
                 {
-                    application.wheels.controllers[arguments.name] = $createObjectFromRoot(path=loc.controllerPath, fileName=loc.fileName, method="$initControllerClass", name=arguments.name);
-                    loc.returnValue = application.wheels.controllers[arguments.name];
-                    break;
+                    if (loc.helperFileExists)
+                        application.wheels.existingHelperFiles = ListAppend(application.wheels.existingHelperFiles, arguments.name);
+                    else
+                        application.wheels.nonExistingHelperFiles = ListAppend(application.wheels.nonExistingHelperFiles, arguments.name);
                 }
             }
+            if (ListFindNoCase(application.wheels.existingHelperFiles, arguments.name) || loc.helperFileExists)
+                $include(template="#application.wheels.viewPath#/#ListChangeDelims(arguments.name, '/', '.')#/helpers.cfm");
+    
+            loc.executeArgs = {};
+            loc.executeArgs.name = arguments.name;
+            $simpleLock(name="controllerLock", type="readonly", execute="$setControllerClassData", executeArgs=loc.executeArgs);
+    
+            variables.params = arguments.params;
+        </cfscript>
+        <cfreturn this>
+    </cffunction>
+
+    <cffunction name="$callAction" mixin="controller" returntype="void" access="public" output="false">
+        <cfargument name="action" type="string" required="true">
+        <cfscript>
+            var loc = {};
+    
+            if (Left(arguments.action, 1) == "$" || ListFindNoCase(application.wheels.protectedControllerMethods, arguments.action))
+                $throw(type="Wheels.ActionNotAllowed", message="You are not allowed to execute the `#arguments.action#` method as an action.", extendedInfo="Make sure your action does not have the same name as any of the built-in Wheels functions.");
+    
+            if (StructKeyExists(this, arguments.action) && IsCustomFunction(this[arguments.action]))
+            {
+                $invoke(method=arguments.action);
+            }
+            else if (StructKeyExists(this, "onMissingMethod"))
+            {
+                loc.invokeArgs = {};
+                loc.invokeArgs.missingMethodName = arguments.action;
+                loc.invokeArgs.missingMethodArguments = {};
+                $invoke(method="onMissingMethod", invokeArgs=loc.invokeArgs);
+            }
+    
+            if (!$performedRenderOrRedirect())
+            {
+                try
+                {
+                    renderPage();
+                }
+                catch(Any e)
+                {
+                    if (FileExists(ExpandPath("#application.wheels.viewPath#/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#/#LCase(arguments.action)#.cfm")))
+                    {
+                        $throw(object=e);
+                    }
+                    else
+                    {
+                        if (application.wheels.showErrorInformation)
+                        {
+                            $throw(type="Wheels.ViewNotFound", message="Could not find the view page for the `#arguments.action#` action in the `#variables.$class.name#` controller.", extendedInfo="Create a file named `#LCase(arguments.action)#.cfm` in the `views/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#` directory (create the directory as well if it doesn't already exist).");
+                        }
+                        else
+                        {
+                            $header(statusCode="404", statusText="Not Found");
+                            $includeAndOutput(template="#application.wheels.eventPath#/onmissingtemplate.cfm");
+                            $abort();
+                        }
+                    }
+                }
+            }
+        </cfscript>
+    </cffunction>
+
+    <cffunction name="$renderPage" mixin="controller" returntype="string" access="public" output="false">
+        <cfscript>
+            var loc = {};
+            if (!Len(arguments.$template))
+                arguments.$template = "/" & ListChangeDelims(arguments.$controller, '/', '.') & "/" & arguments.$action;
+            arguments.$type = "page";
+            arguments.$name = arguments.$template;
+            arguments.$template = $generateIncludeTemplatePath(argumentCollection=arguments);
+            loc.content = $includeFile(argumentCollection=arguments);
+            loc.returnValue = $renderLayout($content=loc.content, $layout=arguments.$layout, $type=arguments.$type);
         </cfscript>
         <cfreturn loc.returnValue>
     </cffunction>
 
-    <cffunction name="$objectFileName" mixin="global" returntype="string" access="public" output="false">
-        <cfargument name="name" type="string" required="true">
-        <cfargument name="objectPath" type="string" required="true">
-        <cfargument name="type" type="string" required="true" hint="Can be either `controller` or `model`." />
+    <cffunction name="$generateIncludeTemplatePath" mixin="controller" returntype="string" access="public" output="false">
+        <cfargument name="$name" type="any" required="true">
+        <cfargument name="$type" type="any" required="true">
+        <cfargument name="$controllerName" type="string" required="false" default="#variables.params.controller#" />
+        <cfargument name="$baseTemplatePath" type="string" required="false" default="#application.wheels.viewPath#" />
+        <cfargument name="$prependWithUnderscore" type="boolean" required="false" default="true">
         <cfscript>
             var loc = {};
-            loc.objectFileExists = false;
-    
-			// the commented out code should no longer be needed as dispatch takes care of properly casing the controller name
-			
-            // if the name contains the delimiter let's capitalize the last element and append it back to the list
-            // if (ListLen(arguments.name, "/") gt 1)
-            //     arguments.name = ListInsertAt(arguments.name, ListLen(arguments.name, "/"), capitalize(ListLast(arguments.name, "/")), "/");
-            // else
-            //    arguments.name = capitalize(arguments.name);
-    
-            // we are going to store the full controller path in the existing / non-existing lists so we can have controllers in multiple places
-            loc.fullObjectPath = arguments.objectPath & "/" & arguments.name;
-    
-            if (!ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase(application.wheels.nonExistingObjectFiles, loc.fullObjectPath))
-            {
-                if (FileExists(ExpandPath("#loc.fullObjectPath#.cfc")))
-                    loc.objectFileExists = true;
-                if (application.wheels.cacheFileChecking)
-                {
-                    if (loc.objectFileExists)
-                        application.wheels.existingObjectFiles = ListAppend(application.wheels.existingObjectFiles, loc.fullObjectPath);
-                    else
-                        application.wheels.nonExistingObjectFiles = ListAppend(application.wheels.nonExistingObjectFiles, loc.fullObjectPath);
-                }
-            }
-            if (ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
-                loc.returnValue = arguments.name;
+            loc.include = arguments.$baseTemplatePath;
+            loc.fileName = ReplaceNoCase(Reverse(ListFirst(Reverse(arguments.$name), "/")), ".cfm", "", "all") & ".cfm"; // extracts the file part of the path and replace ending ".cfm"
+            if (arguments.$type == "partial" && arguments.$prependWithUnderscore)
+                loc.fileName = Replace("_" & loc.fileName, "__", "_", "one"); // replaces leading "_" when the file is a partial
+            loc.folderName = Reverse(ListRest(Reverse(arguments.$name), "/"));
+            if (Left(arguments.$name, 1) == "/")
+                loc.include = loc.include & loc.folderName & "/" & loc.fileName; // Include a file in a sub folder to views
+            else if (arguments.$name Contains "/")
+                loc.include = loc.include & "/" & ListChangeDelims(arguments.$controller, '/', '.') & "/" & loc.folderName & "/" & loc.fileName; // Include a file in a sub folder of the current controller
             else
-                loc.returnValue = capitalize(arguments.type);
+                loc.include = loc.include & "/" & ListChangeDelims(arguments.$controller, '/', '.') & "/" & loc.fileName; // Include a file in the current controller's view folder
         </cfscript>
-        <cfreturn loc.returnValue>
+        <cfreturn LCase(loc.include) />
     </cffunction>
 
     <cffunction name="$initControllerClass" mixin="controller" returntype="any" access="public" output="false">
@@ -471,6 +527,45 @@
 			filters(through="$registerNamedRouteMethods");
         </cfscript>
         <cfreturn this>
+    </cffunction>
+
+    <cffunction name="$objectFileName" mixin="global" returntype="string" access="public" output="false">
+        <cfargument name="name" type="string" required="true">
+        <cfargument name="objectPath" type="string" required="true">
+        <cfargument name="type" type="string" required="true" hint="Can be either `controller` or `model`." />
+        <cfscript>
+            var loc = {};
+            loc.objectFileExists = false;
+    		
+			// the code below is now handled in the dispatch object
+			
+            // if the name contains the delimiter let's capitalize the last element and append it back to the list
+            // if (ListLen(arguments.name, ".") gt 1)
+            //     arguments.name = ListInsertAt(arguFments.name, ListLen(arguments.name, "."), capitalize(ListLast(arguments.name, ".")), ".");
+            // else
+            //     arguments.name = capitalize(arguments.name);
+    
+            // we are going to store the full controller path in the existing / non-existing lists so we can have controllers in multiple places
+            loc.fullObjectPath = arguments.objectPath & "/" & ListChangeDelims(arguments.name, '/', '.');
+    
+            if (!ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase(application.wheels.nonExistingObjectFiles, loc.fullObjectPath))
+            {
+                if (FileExists(ExpandPath("#loc.fullObjectPath#.cfc")))
+                    loc.objectFileExists = true;
+                if (application.wheels.cacheFileChecking)
+                {
+                    if (loc.objectFileExists)
+                        application.wheels.existingObjectFiles = ListAppend(application.wheels.existingObjectFiles, loc.fullObjectPath);
+                    else
+                        application.wheels.nonExistingObjectFiles = ListAppend(application.wheels.nonExistingObjectFiles, loc.fullObjectPath);
+                }
+            }
+            if (ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
+                loc.returnValue = arguments.name;
+            else
+                loc.returnValue = capitalize(arguments.type);
+        </cfscript>
+        <cfreturn loc.returnValue>
     </cffunction>
     
 </cfcomponent>
