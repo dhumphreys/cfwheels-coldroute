@@ -94,7 +94,7 @@
 			
 			// check to see if the route specified has a method to match the one passed in
 			for (loc.position in ListToArray(application.wheels.namedRoutePositions[arguments.route]))
-				if (StructKeyExists(application.wheels.routes[loc.position], "methods") && ListFindNoCase(application.wheels.routes[loc.position].methods, loc.method))
+				if (StructKeyExists(application.wheels.routes[loc.position], "methods") && ListFindNoCase(application.wheels.routes[loc.position].methods, arguments.method))
 					loc.routeAndMethodMatch = true;
 			
 			// if we don't have a match, just return the output
