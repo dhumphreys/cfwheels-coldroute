@@ -103,7 +103,9 @@
 			
 			// save the method passed in
 			loc.method = arguments.method;
-			arguments.method = "post";
+			
+			if (arguments.method != "get")
+				arguments.method = "post";
 			
 			loc.returnValue = coreStartFormTag(argumentCollection=arguments);
 			
