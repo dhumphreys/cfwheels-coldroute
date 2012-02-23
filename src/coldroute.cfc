@@ -185,11 +185,9 @@
 
 	<cffunction name="$findMatchingRoute" mixin="dispatch" returntype="struct" access="public" hint="Help Wheels match routes using path and HTTP method">
 		<cfargument name="path" type="string" required="true" />
+		<cfargument name="requestMethod" type="string" required="false" default="#$getRequestMethod()#" />
 		<cfscript>
 			var loc = {};
-			
-			// get HTTP verb used in request
-			loc.requestMethod = $getRequestMethod();
 
 			// loop over wheels routes
 			loc.iEnd = ArrayLen(application.wheels.routes);
@@ -197,7 +195,7 @@
 				loc.route = application.wheels.routes[loc.i];
 				
 				// if method doesn't match, skip this route
-				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, loc.requestMethod))
+				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, arguments.requestMethod))
 					continue;
 				
 				// make sure route has been converted to regex
