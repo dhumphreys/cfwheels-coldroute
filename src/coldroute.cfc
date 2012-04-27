@@ -568,4 +568,22 @@
         <cfreturn loc.returnValue>
     </cffunction>
     
+	<cffunction name="$generateRenderWithTemplatePath" access="public" output="false" returntype="string" hint="">
+		<cfargument name="controller" type="string" required="true">
+		<cfargument name="action" type="string" required="true">
+		<cfargument name="template" type="string" required="true">
+		<cfargument name="contentType" type="string" required="true">
+		<cfscript>
+			var templateName = "";
+			
+			if (!Len(arguments.template))
+				templateName = "/" & Replace(arguments.controller, ".", "/") & "/" & arguments.action;
+			else
+				templateName = arguments.template;
+				
+			if (Len(arguments.contentType))
+				templateName = templateName & "." & arguments.contentType;
+		</cfscript>
+		<cfreturn templateName />
+	</cffunction>
 </cfcomponent>
