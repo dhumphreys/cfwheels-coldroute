@@ -115,16 +115,32 @@
         <cfreturn loc.returnValue />
     </cffunction>
 	
-	<cffunction name="urlFor" mixin="controller" returntype="string" access="public" output="false" hint="Look up actual route paths instead of providing default Wheels path generation">
+	<cffunction name="URLFor" mixin="controller" returntype="string" access="public" output="false">
+		<cfargument name="route" type="string" required="false" default="" hint="Name of a route that you have configured in `config/routes.cfm`.">
+		<cfargument name="controller" type="string" required="false" default="" hint="Name of the controller to include in the URL.">
+		<cfargument name="action" type="string" required="false" default="" hint="Name of the action to include in the URL.">
+		<cfargument name="key" type="any" required="false" default="" hint="Key(s) to include in the URL.">
+		<cfargument name="params" type="string" required="false" default="" hint="Any additional params to be set in the query string.">
+		<cfargument name="anchor" type="string" required="false" default="" hint="Sets an anchor name to be appended to the path.">
+		<cfargument name="onlyPath" type="boolean" required="false" hint="If `true`, returns only the relative URL (no protocol, host name or port).">
+		<cfargument name="host" type="string" required="false" hint="Set this to override the current host.">
+		<cfargument name="protocol" type="string" required="false" hint="Set this to override the current protocol.">
+		<cfargument name="port" type="numeric" required="false" hint="Set this to override the current port number.">
+		<cfargument name="$URLRewriting" type="string" required="false" default="#application.wheels.URLRewriting#">
 		<cfscript>
 			var loc = {};
-			var coreUrlFor = core.urlFor;
-			
-			// try looking up exact route if controller and action are set
-			if ((NOT StructKeyExists(arguments, "route") OR arguments.route EQ "") AND StructKeyExists(arguments, "action")) {
+			loc.coreVariables = "controller,action,key,format";
+			loc.returnValue = $args(name="URLFor", args=arguments, cachable=true);
+			if (StructKeyExists(loc, "returnValue"))
+				return loc.returnValue;
 				
-				// fill in controller if it is not set
-				if (NOT StructKeyExists(arguments, "controller") OR arguments.controller EQ "")
+			// error if host or protocol are passed with onlyPath=true
+			if (application.wheels.showErrorInformation AND arguments.onlyPath AND (Len(arguments.host) OR Len(arguments.protocol)))
+				$throw(type="Wheels.IncorrectArguments", message="Can't use the `host` or `protocol` arguments when `onlyPath` is `true`.", extendedInfo="Set `onlyPath` to `false` so that `linkTo` will create absolute URLs and thus allowing you to set the `host` and `protocol` on the link.");
+			
+			// Look up actual route paths instead of providing default Wheels path generation
+			if (arguments.route EQ "" AND arguments.action NEQ "") {
+				if (arguments.controller EQ "")
 					arguments.controller = variables.params.controller;
 				
 				// determine key and look up cache structure
@@ -143,7 +159,7 @@
 						loc.curr = application.wheels.routes[loc.i];
 						
 						// if found, cache the route name, set up arguments, and break from loop
-						if (loc.curr.controller EQ arguments.controller AND loc.curr.action EQ arguments.action) {
+						if (StructKeyExists(loc.curr, "controller") AND loc.curr.controller EQ arguments.controller AND StructKeyExists(loc.curr, "action") AND loc.curr.action EQ arguments.action) {
 							arguments.route = application.wheels.routes[loc.i].name;
 							loc.cache[loc.key] = arguments.route;
 							break;
@@ -152,9 +168,103 @@
 				}
 			}
 			
-			// call core method
-			return coreUrlFor(argumentCollection=arguments);
+			// look up route pattern to use
+			if (arguments.route NEQ "") {
+				loc.route = $findRoute(argumentCollection=arguments);
+				loc.variables = loc.route.variables;
+				loc.returnValue = loc.route.pattern;
+			
+			// use default route pattern
+			} else {
+				loc.route = {};
+				loc.variables = loc.coreVariables;
+				loc.returnValue = "/[controller]/[action]/[key].[format]";
+				
+				// set controller and action based on controller params
+				if (StructKeyExists(variables, "params")) {
+					if (arguments.action EQ "" AND StructKeyExists(variables.params, "action") AND (arguments.controller NEQ "" OR arguments.key NEQ "" OR StructKeyExists(arguments, "format")))
+						arguments.action = variables.params.action;
+					if (arguments.controller EQ "" AND StructKeyExists(variables.params, "controller"))
+						arguments.controller = variables.params.controller;
+				}
+			}
+			
+			// replace pattern if there is no rewriting enabled
+			if (arguments.$URLRewriting EQ "Off") {
+				loc.variables = ListPrepend(loc.variables, loc.coreVariables);
+				loc.returnValue = "?controller=[controller]&action=[action]&key=[key]&format=[format]";
+			}
+			
+			// replace each params variable with the correct value
+			loc.iEnd = ListLen(loc.variables);
+			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
+				loc.property = ListGetAt(loc.variables, loc.i);
+				loc.reg = "\[\*?#loc.property#\]";
+				
+				// read necessary variables from different sources
+				if (StructKeyExists(arguments, loc.property) AND Len(arguments[loc.property]))
+					loc.value = arguments[loc.property];
+				else if (StructKeyExists(loc.route, loc.property))
+					loc.value = loc.route[loc.property];
+				else if (arguments.route NEQ "" AND arguments.$URLRewriting NEQ "Off")
+					$throw(type="Wheels", message="Incorrect Arguments", extendedInfo="The route chosen by Wheels `#loc.route.name#` requires the argument `#loc.property#`. Pass the argument `#loc.property#` or change your routes to reflect the proper variables needed.");
+				else
+					continue;
+					
+				// if value is a model object, get its key value
+				if (IsObject(loc.value))
+					loc.value = loc.value.toParam();
+				
+				// if property is not in pattern, store it in the params argument
+				if (NOT REFind(loc.reg, loc.returnValue)) {
+					if (NOT	ListFindNoCase(loc.coreVariables, loc.property))
+						arguments.params = ListAppend(arguments.params, "#loc.property#=#loc.value#", "&");
+					continue;
+				}
+				
+				// transform value before setting it in pattern
+				if (loc.property EQ "controller" OR loc.property EQ "action")
+					loc.value = hyphenize(loc.value);
+				else if (application.wheels.obfuscateUrls)
+					loc.value = obfuscateParam(loc.value);
+				
+				loc.returnValue = REReplace(loc.returnValue, loc.reg, loc.value);
+			}
+			
+			// clean up unused keys in pattern
+			loc.returnValue = REReplace(loc.returnValue, "((&|\?)\w+=|/|\.)\[\*?\w+\]", "", "ALL");
+			
+			// apply anchor and additional parameters
+			if (Len(arguments.params))
+				loc.returnValue = loc.returnValue & $constructParams(params=arguments.params, $URLRewriting=arguments.$URLRewriting);
+			if (Len(arguments.anchor))
+				loc.returnValue = loc.returnValue & "##" & arguments.anchor;
+	
+			// apply needed path prefix depending on rewrite style
+			if (arguments.$URLRewriting EQ "Partial")
+				loc.returnValue = application.wheels.rewriteFile & loc.returnValue;
+			else if (arguments.$URLRewriting EQ "Off")
+				loc.returnValue = "index.cfm" & loc.returnValue;
+			loc.returnValue = application.wheels.webPath & loc.returnValue;
+			loc.returnValue = Replace(loc.returnValue, "//", "/", "ALL");
+	
+			// prepend necessary url information
+			if (NOT arguments.onlyPath){
+				if (arguments.port NEQ 0)
+					loc.returnValue = ":" & arguments.port & loc.returnValue; // use the port that was passed in by the developer
+				else if (request.cgi.server_port NEQ 80 AND request.cgi.server_port NEQ 443)
+					loc.returnValue = ":" & request.cgi.server_port & loc.returnValue; // if the port currently in use is not 80 or 443 we set it explicitly in the URL
+				if (Len(arguments.host))
+					loc.returnValue = arguments.host & loc.returnValue;
+				else
+					loc.returnValue = request.cgi.server_name & loc.returnValue;
+				if (Len(arguments.protocol))
+					loc.returnValue = arguments.protocol & "://" & loc.returnValue;
+				else
+					loc.returnValue = SpanExcluding(LCase(request.cgi.server_protocol), "/") & "://" & loc.returnValue;
+			}
 		</cfscript>
+		<cfreturn loc.returnValue />
 	</cffunction>
 	
 	<cffunction name="$urlForCache" mixin="global" returntype="struct" access="public" hint="Lazy-create a request-level cache for found routes">
