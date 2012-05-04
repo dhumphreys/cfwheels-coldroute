@@ -1,5 +1,16 @@
 # ColdRoute Changelog
 
+## 0.2 - Second Release
+
+* Improved internals for mapping and matching [Don]
+  * Regex powered route matching
+  * Shallow resources
+  * Regex constraints for segment variables
+  * Optional segment support [James H]
+  * Full support for ```[format]```
+* New ```constraints()``` method and params [Don]
+* New ```on``` parameter for ```match()``` method [Don]
+
 ## 0.1.1 - Bug Fixes
 
 * Fixed route helpers to allow strings that appear to be false [Don]
