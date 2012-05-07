@@ -4,7 +4,7 @@
 			var loc = {};
 			
 			// cfwheels version string
-			this.version = "1.1,1.1.1,1.1.2,1.1.3,1.1.4,1.1.5";
+			this.version = "1.1,1.1.1,1.1.2,1.1.3,1.1.4,1.1.5,1.1.6,1.1.7";
 			
 			// get cfwheels plugin prefix
 			loc.prefix = ListChangeDelims(application.wheels.webPath & application.wheels.pluginPath, ".", "/");
