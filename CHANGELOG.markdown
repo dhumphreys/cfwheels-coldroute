@@ -1,5 +1,13 @@
 # ColdRoute Changelog
 
+## 0.3 - Third Release
+
+* Allowed all namespacing features to work with Wheels
+  * Fixed dot-syntax for controllers in various places [James G]
+  * Fixed dot-syntax for controllers in ```renderWith()``` [Chris]
+* Support for ```method``` in ```startFormTag()``` [James G]
+* Allow ```requestMethod``` to be overridden in ```$findMatchingRoute()``` [James G]
+
 ## 0.2 - Second Release
 
 * Improved internals for mapping and matching [Don]
