@@ -93,7 +93,9 @@
 				$throw(type="Wheels", message="Route Not Found", extendedInfo="The route specified `#arguments.route#` does not exist!");
 			
 			// check to see if the route specified has a method to match the one passed in
-			for (loc.position in ListToArray(application.wheels.namedRoutePositions[arguments.route]))
+			loc.namedRoutePositions = ListToArray(application.wheels.namedRoutePositions[arguments.route]);
+			loc.iEnd = ArrayLen(loc.namedRoutePositions);
+			for (loc.position = 1; loc.position LTE loc.iEnd; loc.position++)
 				if (StructKeyExists(application.wheels.routes[loc.position], "methods") && ListFindNoCase(application.wheels.routes[loc.position].methods, arguments.method))
 					loc.routeAndMethodMatch = true;
 			
