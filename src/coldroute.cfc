@@ -2,71 +2,82 @@
 	<cffunction name="init" returntype="struct" access="public">
 		<cfscript>
 			var loc = {};
-			
+
 			// cfwheels version string
-			this.version = "1.1,1.1.1,1.1.2,1.1.3,1.1.4,1.1.5,1.1.6,1.1.7";
-			
+			this.version = "1.1,1.1.1,1.1.2,1.1.3,1.1.4,1.1.5,1.1.6,1.1.7,1.1.8,1.3";
+
 			// get cfwheels plugin prefix
-			loc.prefix = ListChangeDelims(application.wheels.webPath & application.wheels.pluginPath, ".", "/");
-			
+			loc.prefix = ListChangeDelims($wheelsStruct().webPath & $wheelsStruct().pluginPath, ".", "/");
+
 			// initialize coldroute mapper
-			application.wheels.coldroute = CreateObject("component", "#loc.prefix#.coldroute.lib.Mapper").init();
-			
+			$wheelsStruct().coldroute = CreateObject("component", "#loc.prefix#.coldroute.lib.Mapper").init();
+
 			// set wheels setting for resource controller naming
 			// NOTE: options are singular, plural, or name
-			if (NOT StructKeyExists(application.wheels, "resourceControllerNaming"))
-				application.wheels.resourceControllerNaming = "plural";
-			
+			if (NOT StructKeyExists($wheelsStruct(), "resourceControllerNaming"))
+				$wheelsStruct().resourceControllerNaming = "plural";
+
 			return this;
 		</cfscript>
 	</cffunction>
-	
+
+	<cffunction name="$wheelsStruct" returntype="struct" output="false" access="public" hint="set wheels scope to allow $wheels application variable (1.3 compatility)">
+		<cfscript>
+			var loc = {};
+			if (StructKeyExists(application, "wheels")) {
+				return application.wheels;
+			} else if (StructKeyExists(application, "$wheels")) {
+				return application.$wheels;
+			}
+		</cfscript>
+	</cffunction>
+
 	<cffunction name="drawRoutes" mixin="application" returntype="struct" output="false" access="public" hint="Start drawing routes">
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
 		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
-		<cfreturn application.wheels.coldroute.draw(argumentCollection=arguments) />
+		<cfreturn $wheelsStruct().coldroute.draw(argumentCollection=arguments) />
 	</cffunction>
-	
+
 	<cffunction name="toParam" mixin="model" returntype="any" access="public" output="false" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
 		<cfscript>
-			
+
 			// call wheels key() method by default
 			return key();
 		</cfscript>
 	</cffunction>
-	
+
 	<cffunction name="linkTo" mixin="controller" returntype="any" access="public" output="false" hint="Allow data-method and data-confirm on links">
 		<cfscript>
 			var loc = {};
 			var coreLinkTo = core.linkTo;
-			
+
 			// look for passed in rest method
 			if (StructKeyExists(arguments, "method")) {
-				
+
 				// if dealing with delete, keep robots from following link
 				if (arguments.method EQ "delete") {
 					if (NOT StructKeyExists(arguments, "rel"))
 						arguments.rel = "";
 					arguments.rel = ListAppend(arguments.rel, "no-follow", " ");
 				}
-				
+
 				// put the method in a data attribute
 				arguments["data-method"] = arguments.method;
 				StructDelete(arguments, "method");
 			}
-			
+
 			// set confirmation text for link
 			if (StructKeyExists(arguments, "confirm")) {
 				arguments["data-confirm"] = arguments.confirm;
 				StructDelete(arguments, "confirm");
 			}
-			
+
 			// set up remote links
 			if (StructKeyExists(arguments, "remote")) {
 				arguments["data-remote"] = arguments.remote;
 				StructDelete(arguments, "remote");
 			}
-			
+
 			// hyphenize any other data attributes
 			for (loc.key in arguments) {
 				if (REFind("^data[A-Z]", loc.key)) {
@@ -74,47 +85,47 @@
 					StructDelete(arguments, loc.key);
 				}
 			}
-			
+
 			return coreLinkTo(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
-    
+
     <cffunction name="startFormTag" mixin="controller" returntype="string" access="public" output="false" hint="Make it easy for the developer to create forms with the proper http method specified">
     	<cfscript>
         	var loc = { routeAndMethodMatch = false };
 			var coreStartFormTag = core.startFormTag;
-			
+
 			// if we don't have a route and method passed in, just return the output from the core method
 			if (!StructKeyExists(arguments, "route") || !StructKeyExists(arguments, "method"))
 				return coreStartFormTag(argumentCollection=arguments);
-			
+
 			// throw a nice wheels error if the developer passes in a route that was not generated
-			if (application.wheels.showErrorInformation && !StructKeyExists(application.wheels.namedRoutePositions, arguments.route))
+			if ($wheelsStruct().showErrorInformation && !StructKeyExists($wheelsStruct().namedRoutePositions, arguments.route))
 				$throw(type="Wheels", message="Route Not Found", extendedInfo="The route specified `#arguments.route#` does not exist!");
-			
+
 			// check to see if the route specified has a method to match the one passed in
-			for (loc.position in ListToArray(application.wheels.namedRoutePositions[arguments.route]))
-				if (StructKeyExists(application.wheels.routes[loc.position], "methods") && ListFindNoCase(application.wheels.routes[loc.position].methods, arguments.method))
+			for (loc.position in ListToArray($wheelsStruct().namedRoutePositions[arguments.route]))
+				if (StructKeyExists($wheelsStruct().routes[loc.position], "methods") && ListFindNoCase($wheelsStruct().routes[loc.position].methods, arguments.method))
 					loc.routeAndMethodMatch = true;
-			
+
 			// if we don't have a match, just return the output
 			if (!loc.routeAndMethodMatch)
 				return coreStartFormTag(argumentCollection=arguments);
-			
+
 			// save the method passed in
 			loc.method = arguments.method;
-			
+
 			if (arguments.method != "get")
 				arguments.method = "post";
-			
+
 			loc.returnValue = coreStartFormTag(argumentCollection=arguments);
-			
+
 			// make it easy for the developer and add in everything they need
 			loc.returnValue = loc.returnValue & hiddenFieldTag(name="_method", value=loc.method);
         </cfscript>
         <cfreturn loc.returnValue />
     </cffunction>
-	
+
 	<cffunction name="URLFor" mixin="controller" returntype="string" access="public" output="false">
 		<cfargument name="route" type="string" required="false" default="" hint="Name of a route that you have configured in `config/routes.cfm`.">
 		<cfargument name="controller" type="string" required="false" default="" hint="Name of the controller to include in the URL.">
@@ -126,60 +137,60 @@
 		<cfargument name="host" type="string" required="false" hint="Set this to override the current host.">
 		<cfargument name="protocol" type="string" required="false" hint="Set this to override the current protocol.">
 		<cfargument name="port" type="numeric" required="false" hint="Set this to override the current port number.">
-		<cfargument name="$URLRewriting" type="string" required="false" default="#application.wheels.URLRewriting#">
+		<cfargument name="$URLRewriting" type="string" required="false" default="#$wheelsStruct().URLRewriting#">
 		<cfscript>
 			var loc = {};
 			loc.coreVariables = "controller,action,key,format";
 			loc.returnValue = $args(name="URLFor", args=arguments, cachable=true);
 			if (StructKeyExists(loc, "returnValue"))
 				return loc.returnValue;
-				
+
 			// error if host or protocol are passed with onlyPath=true
-			if (application.wheels.showErrorInformation AND arguments.onlyPath AND (Len(arguments.host) OR Len(arguments.protocol)))
+			if ($wheelsStruct().showErrorInformation AND arguments.onlyPath AND (Len(arguments.host) OR Len(arguments.protocol)))
 				$throw(type="Wheels.IncorrectArguments", message="Can't use the `host` or `protocol` arguments when `onlyPath` is `true`.", extendedInfo="Set `onlyPath` to `false` so that `linkTo` will create absolute URLs and thus allowing you to set the `host` and `protocol` on the link.");
-			
+
 			// Look up actual route paths instead of providing default Wheels path generation
 			if (arguments.route EQ "" AND arguments.action NEQ "") {
 				if (arguments.controller EQ "")
 					arguments.controller = variables.params.controller;
-				
+
 				// determine key and look up cache structure
 				loc.key = arguments.controller & "##" & arguments.action;
 				loc.cache = $urlForCache();
-				
+
 				// if route has already been found, just use it
 				if (StructKeyExists(loc.cache, loc.key)) {
 					arguments.route = loc.cache[loc.key];
-					
+
 				} else {
-					
+
 					// loop over routes to find matching one
-					loc.iEnd = ArrayLen(application.wheels.routes);
+					loc.iEnd = ArrayLen($wheelsStruct().routes);
 					for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-						loc.curr = application.wheels.routes[loc.i];
-						
+						loc.curr = $wheelsStruct().routes[loc.i];
+
 						// if found, cache the route name, set up arguments, and break from loop
 						if (StructKeyExists(loc.curr, "controller") AND loc.curr.controller EQ arguments.controller AND StructKeyExists(loc.curr, "action") AND loc.curr.action EQ arguments.action) {
-							arguments.route = application.wheels.routes[loc.i].name;
+							arguments.route = $wheelsStruct().routes[loc.i].name;
 							loc.cache[loc.key] = arguments.route;
 							break;
 						}
 					}
 				}
 			}
-			
+
 			// look up route pattern to use
 			if (arguments.route NEQ "") {
 				loc.route = $findRoute(argumentCollection=arguments);
 				loc.variables = loc.route.variables;
 				loc.returnValue = loc.route.pattern;
-			
+
 			// use default route pattern
 			} else {
 				loc.route = {};
 				loc.variables = loc.coreVariables;
 				loc.returnValue = "/[controller]/[action]/[key].[format]";
-				
+
 				// set controller and action based on controller params
 				if (StructKeyExists(variables, "params")) {
 					if (arguments.action EQ "" AND StructKeyExists(variables.params, "action") AND (arguments.controller NEQ "" OR arguments.key NEQ "" OR StructKeyExists(arguments, "format")))
@@ -188,19 +199,19 @@
 						arguments.controller = variables.params.controller;
 				}
 			}
-			
+
 			// replace pattern if there is no rewriting enabled
 			if (arguments.$URLRewriting EQ "Off") {
 				loc.variables = ListPrepend(loc.variables, loc.coreVariables);
 				loc.returnValue = "?controller=[controller]&action=[action]&key=[key]&format=[format]";
 			}
-			
+
 			// replace each params variable with the correct value
 			loc.iEnd = ListLen(loc.variables);
 			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
 				loc.property = ListGetAt(loc.variables, loc.i);
 				loc.reg = "\[\*?#loc.property#\]";
-				
+
 				// read necessary variables from different sources
 				if (StructKeyExists(arguments, loc.property) AND Len(arguments[loc.property]))
 					loc.value = arguments[loc.property];
@@ -210,44 +221,44 @@
 					$throw(type="Wheels", message="Incorrect Arguments", extendedInfo="The route chosen by Wheels `#loc.route.name#` requires the argument `#loc.property#`. Pass the argument `#loc.property#` or change your routes to reflect the proper variables needed.");
 				else
 					continue;
-					
+
 				// if value is a model object, get its key value
 				if (IsObject(loc.value))
 					loc.value = loc.value.toParam();
-				
+
 				// if property is not in pattern, store it in the params argument
 				if (NOT REFind(loc.reg, loc.returnValue)) {
 					if (NOT	ListFindNoCase(loc.coreVariables, loc.property))
 						arguments.params = ListAppend(arguments.params, "#loc.property#=#loc.value#", "&");
 					continue;
 				}
-				
+
 				// transform value before setting it in pattern
 				if (loc.property EQ "controller" OR loc.property EQ "action")
 					loc.value = hyphenize(loc.value);
-				else if (application.wheels.obfuscateUrls)
+				else if ($wheelsStruct().obfuscateUrls)
 					loc.value = obfuscateParam(loc.value);
-				
+
 				loc.returnValue = REReplace(loc.returnValue, loc.reg, loc.value);
 			}
-			
+
 			// clean up unused keys in pattern
 			loc.returnValue = REReplace(loc.returnValue, "((&|\?)\w+=|/|\.)\[\*?\w+\]", "", "ALL");
-			
+
 			// apply anchor and additional parameters
 			if (Len(arguments.params))
 				loc.returnValue = loc.returnValue & $constructParams(params=arguments.params, $URLRewriting=arguments.$URLRewriting);
 			if (Len(arguments.anchor))
 				loc.returnValue = loc.returnValue & "##" & arguments.anchor;
-	
+
 			// apply needed path prefix depending on rewrite style
 			if (arguments.$URLRewriting EQ "Partial")
-				loc.returnValue = application.wheels.rewriteFile & loc.returnValue;
+				loc.returnValue = $wheelsStruct().rewriteFile & loc.returnValue;
 			else if (arguments.$URLRewriting EQ "Off")
 				loc.returnValue = "index.cfm" & loc.returnValue;
-			loc.returnValue = application.wheels.webPath & loc.returnValue;
+			loc.returnValue = $wheelsStruct().webPath & loc.returnValue;
 			loc.returnValue = Replace(loc.returnValue, "//", "/", "ALL");
-	
+
 			// prepend necessary url information
 			if (NOT arguments.onlyPath){
 				if (arguments.port NEQ 0)
@@ -266,7 +277,7 @@
 		</cfscript>
 		<cfreturn loc.returnValue />
 	</cffunction>
-	
+
 	<cffunction name="$urlForCache" mixin="global" returntype="struct" access="public" hint="Lazy-create a request-level cache for found routes">
 		<cfscript>
 			if (NOT StructKeyExists(request.wheels, "urlForCache"))
@@ -274,14 +285,14 @@
 			return request.wheels.urlForCache;
 		</cfscript>
 	</cffunction>
-	
+
 	<cffunction name="$getRequestMethod" mixin="dispatch" returntype="string" access="public" hint="Determine HTTP verb used in request">
 		<cfscript>
-			
+
 			// if request is a post, check for alternate verb
 			if (cgi.request_method EQ "post" AND StructKeyExists(form, "_method"))
 				return form["_method"];
-			
+
 			return cgi.request_method;
 		</cfscript>
 	</cffunction>
@@ -300,32 +311,32 @@
 			var loc = {};
 
 			// loop over wheels routes
-			loc.iEnd = ArrayLen(application.wheels.routes);
+			loc.iEnd = ArrayLen($wheelsStruct().routes);
 			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-				loc.route = application.wheels.routes[loc.i];
-				
+				loc.route = $wheelsStruct().routes[loc.i];
+
 				// if method doesn't match, skip this route
 				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, arguments.requestMethod))
 					continue;
-				
+
 				// make sure route has been converted to regex
 				if (NOT StructKeyExists(loc.route, "regex"))
-					loc.route.regex = application.wheels.coldroute.patternToRegex(loc.route.pattern);
-				
+					loc.route.regex = $wheelsStruct().coldroute.patternToRegex(loc.route.pattern);
+
 				// if route matches regular expression, set it for return
 				if (REFindNoCase(loc.route.regex, arguments.path) OR (arguments.path EQ "" AND loc.route.pattern EQ "/")) {
-					loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
+					loc.returnValue = Duplicate($wheelsStruct().routes[loc.i]);
 					break;
 				}
 			}
-			
+
 			// throw error if not route was found
 			if (NOT StructKeyExists(loc, "returnValue"))
 				$throw(type="Wheels.RouteNotFound", message="Wheels couldn't find a route that matched this request.", extendedInfo="Make sure there is a route setup in your 'config/routes.cfm' file that matches the '#arguments.path#' request.");
 		</cfscript>
 		<cfreturn loc.returnValue />
 	</cffunction>
-	
+
 	<cffunction name="$mergeRoutePattern" returntype="struct" access="public" output="false" mixin="dispatch,controller" hint="Pull route variables out of path">
 		<cfargument name="params" type="struct" required="true">
 		<cfargument name="route" type="struct" required="true">
@@ -356,24 +367,24 @@
 		</cfscript>
 		<cfreturn returnValue>
 	</cffunction>
-	
+
 	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public" hint="Filter that sets up named route helper methods">
 		<cfscript>
 			var loc = {};
-			for (loc.key in application.wheels.namedRoutePositions) {
+			for (loc.key in $wheelsStruct().namedRoutePositions) {
 				variables[loc.key & "Path"] = $namedRouteMethod;
 				variables[loc.key & "Url"] = $namedRouteMethod;
 			}
 		</cfscript>
 	</cffunction>
-	
+
 	<cffunction name="$namedRouteMethod" mixin="controller" returntype="string" access="public" output="false" hint="Body of all named route helper methods">
 		<cfscript>
 			var loc = {};
-			
+
 			// FIX: numbered arguments with StructDelete() are breaking in CF 9.0.1, this hack fixes it
 			arguments = Duplicate(arguments);
-			
+
 			// determine route name and path type
 			arguments.route = GetFunctionCalledName();
 			if (REFindNoCase("Path$", arguments.route)) {
@@ -383,27 +394,27 @@
 				arguments.route = REReplaceNoCase(arguments.route, "^(.+)Url$", "\1");
 				arguments.onlyPath = false;
 			}
-			
+
 			// get the matching route and any required variables
-			if (StructKeyExists(application.wheels.namedRoutePositions, arguments.route)) {
-				loc.routePos = application.wheels.namedRoutePositions[arguments.route];
-				
+			if (StructKeyExists($wheelsStruct().namedRoutePositions, arguments.route)) {
+				loc.routePos = $wheelsStruct().namedRoutePositions[arguments.route];
+
 				// for backwards compatibility, allow loc.routePos to be a list
 				if (IsArray(loc.routePos))
 					loc.pos = loc.routePos[1];
 				else
 					loc.pos = ListFirst(loc.routePos);
-				
+
 				// grab first route found
 				// todo: don't just accept the first route found
-				loc.route = application.wheels.routes[loc.pos];
+				loc.route = $wheelsStruct().routes[loc.pos];
 				loc.vars = ListToArray(loc.route.variables);
-			
+
 				// loop over variables needed for route
 				loc.iEnd = ArrayLen(loc.vars);
 				for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
 					loc.key = loc.vars[loc.i];
-					
+
 					// try to find the correct argument
 					if (StructKeyExists(arguments, loc.key)) {
 						loc.value = arguments[loc.key];
@@ -412,47 +423,47 @@
 						loc.value = arguments[loc.i];
 						StructDelete(arguments, loc.i);
 					}
-						
+
 					// if value was passed in
 					if (StructKeyExists(loc, "value")) {
-						
+
 						// just assign simple values
 						if (NOT IsObject(loc.value)) {
 							arguments[loc.key] = loc.value;
-							
+
 						// if object, do special processing
 						} else {
-							
+
 							// if the passed in object is new, link to the plural REST route instead
 							if (loc.value.isNew()) {
-								if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(arguments.route))) {
+								if (StructKeyExists($wheelsStruct().namedRoutePositions, pluralize(arguments.route))) {
 									arguments.route = pluralize(arguments.route);
 									break;
 								}
-								
+
 							// otherwise, use the Model#toParam method
 							} else {
 								arguments[loc.key] = loc.value.toParam();
 							}
 						}
-						
+
 						// remove value for next loop
 						StructDelete(loc, "value");
 					}
 				}
 			}
-			
+
 			// return correct url with arguments set
 			return urlFor(argumentCollection=arguments);
 		</cfscript>
 	</cffunction>
-    
+
     <!---
 		James Gibson:
 		These are the necessary changes to wheels to allow controllers to be nested.
-		These changes have already been committed to core but have not made it into 
+		These changes have already been committed to core but have not made it into
 		a release.
-		
+
 		These changes also fix $ensureControllerAndAction to allow "." in the action
 		and controller name.
 	--->
@@ -469,48 +480,48 @@
             {
                 arguments.params.action = arguments.route.action;
             }
-    
+
             // filter out illegal characters from the controller and action arguments
             arguments.params.controller = ReReplace(arguments.params.controller, "[^0-9A-Za-z-_\.]", "", "all");
             arguments.params.action = ReReplace(arguments.params.action, "[^0-9A-Za-z-_\.]", "", "all");
-			
+
 			arguments.params.controller = ListSetAt(arguments.params.controller, ListLen(arguments.params.controller, "."), REReplace(ListLast(arguments.params.controller, "."), "(^|-)([a-z])", "\u\2", "all"), ".");
 			arguments.params.action = REReplace(arguments.params.action, "-([a-z])", "\u\1", "all");
         </cfscript>
         <cfreturn arguments.params>
     </cffunction>
-    
+
     <cffunction name="$initControllerObject" mixin="controller" returntype="any" access="public" output="false">
         <cfargument name="name" type="string" required="true">
         <cfargument name="params" type="struct" required="true">
         <cfscript>
             var loc = {};
-    
+
             // create a struct for storing request specific data
             variables.$instance = {};
             variables.$instance.contentFor = {};
-    
+
             // include controller specific helper files if they exist, cache the file check for performance reasons
             loc.helperFileExists = false;
-            if (!ListFindNoCase(application.wheels.existingHelperFiles, arguments.name) && !ListFindNoCase(application.wheels.nonExistingHelperFiles, arguments.name))
+            if (!ListFindNoCase($wheelsStruct().existingHelperFiles, arguments.name) && !ListFindNoCase($wheelsStruct().nonExistingHelperFiles, arguments.name))
             {
-                if (FileExists(ExpandPath("#application.wheels.viewPath#/#LCase(ListChangeDelims(arguments.name, '/', '.'))#/helpers.cfm")))
+                if (FileExists(ExpandPath("#$wheelsStruct().viewPath#/#LCase(ListChangeDelims(arguments.name, '/', '.'))#/helpers.cfm")))
                     loc.helperFileExists = true;
-                if (application.wheels.cacheFileChecking)
+                if ($wheelsStruct().cacheFileChecking)
                 {
                     if (loc.helperFileExists)
-                        application.wheels.existingHelperFiles = ListAppend(application.wheels.existingHelperFiles, arguments.name);
+                        $wheelsStruct().existingHelperFiles = ListAppend($wheelsStruct().existingHelperFiles, arguments.name);
                     else
-                        application.wheels.nonExistingHelperFiles = ListAppend(application.wheels.nonExistingHelperFiles, arguments.name);
+                        $wheelsStruct().nonExistingHelperFiles = ListAppend($wheelsStruct().nonExistingHelperFiles, arguments.name);
                 }
             }
-            if (ListFindNoCase(application.wheels.existingHelperFiles, arguments.name) || loc.helperFileExists)
-                $include(template="#application.wheels.viewPath#/#ListChangeDelims(arguments.name, '/', '.')#/helpers.cfm");
-    
+            if (ListFindNoCase($wheelsStruct().existingHelperFiles, arguments.name) || loc.helperFileExists)
+                $include(template="#$wheelsStruct().viewPath#/#ListChangeDelims(arguments.name, '/', '.')#/helpers.cfm");
+
             loc.executeArgs = {};
             loc.executeArgs.name = arguments.name;
             $simpleLock(name="controllerLock", type="readonly", execute="$setControllerClassData", executeArgs=loc.executeArgs);
-    
+
             variables.params = arguments.params;
         </cfscript>
         <cfreturn this>
@@ -520,10 +531,10 @@
         <cfargument name="action" type="string" required="true">
         <cfscript>
             var loc = {};
-    
-            if (Left(arguments.action, 1) == "$" || ListFindNoCase(application.wheels.protectedControllerMethods, arguments.action))
+
+            if (Left(arguments.action, 1) == "$" || ListFindNoCase($wheelsStruct().protectedControllerMethods, arguments.action))
                 $throw(type="Wheels.ActionNotAllowed", message="You are not allowed to execute the `#arguments.action#` method as an action.", extendedInfo="Make sure your action does not have the same name as any of the built-in Wheels functions.");
-    
+
             if (StructKeyExists(this, arguments.action) && IsCustomFunction(this[arguments.action]))
             {
                 $invoke(method=arguments.action);
@@ -535,7 +546,7 @@
                 loc.invokeArgs.missingMethodArguments = {};
                 $invoke(method="onMissingMethod", invokeArgs=loc.invokeArgs);
             }
-    
+
             if (!$performedRenderOrRedirect())
             {
                 try
@@ -544,20 +555,20 @@
                 }
                 catch(Any e)
                 {
-                    if (FileExists(ExpandPath("#application.wheels.viewPath#/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#/#LCase(arguments.action)#.cfm")))
+                    if (FileExists(ExpandPath("#$wheelsStruct().viewPath#/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#/#LCase(arguments.action)#.cfm")))
                     {
                         $throw(object=e);
                     }
                     else
                     {
-                        if (application.wheels.showErrorInformation)
+                        if ($wheelsStruct().showErrorInformation)
                         {
                             $throw(type="Wheels.ViewNotFound", message="Could not find the view page for the `#arguments.action#` action in the `#variables.$class.name#` controller.", extendedInfo="Create a file named `#LCase(arguments.action)#.cfm` in the `views/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#` directory (create the directory as well if it doesn't already exist).");
                         }
                         else
                         {
                             $header(statusCode="404", statusText="Not Found");
-                            $includeAndOutput(template="#application.wheels.eventPath#/onmissingtemplate.cfm");
+                            $includeAndOutput(template="#$wheelsStruct().eventPath#/onmissingtemplate.cfm");
                             $abort();
                         }
                     }
@@ -584,7 +595,7 @@
         <cfargument name="$name" type="any" required="true">
         <cfargument name="$type" type="any" required="true">
         <cfargument name="$controllerName" type="string" required="false" default="#variables.params.controller#" />
-        <cfargument name="$baseTemplatePath" type="string" required="false" default="#application.wheels.viewPath#" />
+        <cfargument name="$baseTemplatePath" type="string" required="false" default="#$wheelsStruct().viewPath#" />
         <cfargument name="$prependWithUnderscore" type="boolean" required="false" default="true">
         <cfscript>
             var loc = {};
@@ -608,32 +619,32 @@
         <cfscript>
             variables.$class.name = arguments.name;
             variables.$class.path = arguments.path;
-    
-			// the name of the controller should reflect it's pathing wherever it's located	
-	
+
+			// the name of the controller should reflect it's pathing wherever it's located
+
             // if our name has pathing in it, remove it and add it to the end of of the $class.path variable
             // if (Find("/", arguments.name))
             // {
             //     variables.$class.name = ListLast(arguments.name, "/");
             //     variables.$class.path = ListAppend(arguments.path, ListDeleteAt(arguments.name, ListLen(arguments.name, "/"), "/"), "/");
             // }
-    
+
             variables.$class.verifications = [];
             variables.$class.filters = [];
             variables.$class.cachableActions = [];
             variables.$class.layout = {};
-            
+
             // default the controller to only respond to html
             variables.$class.formats = {};
             variables.$class.formats.default = "html";
             variables.$class.formats.actions = {};
             variables.$class.formats.existingTemplates = "";
             variables.$class.formats.nonExistingTemplates = "";
-            
+
             $setFlashStorage(get("flashStorage"));
             if (StructKeyExists(variables, "init"))
                 init();
-				
+
 			filters(through="$registerNamedRouteMethods");
         </cfscript>
         <cfreturn this>
@@ -646,38 +657,38 @@
         <cfscript>
             var loc = {};
             loc.objectFileExists = false;
-    		
+
 			// the code below is now handled in the dispatch object
-			
+
             // if the name contains the delimiter let's capitalize the last element and append it back to the list
             // if (ListLen(arguments.name, ".") gt 1)
             //     arguments.name = ListInsertAt(arguFments.name, ListLen(arguments.name, "."), capitalize(ListLast(arguments.name, ".")), ".");
             // else
             //     arguments.name = capitalize(arguments.name);
-    
+
             // we are going to store the full controller path in the existing / non-existing lists so we can have controllers in multiple places
             loc.fullObjectPath = arguments.objectPath & "/" & ListChangeDelims(arguments.name, '/', '.');
-    
-            if (!ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase(application.wheels.nonExistingObjectFiles, loc.fullObjectPath))
+
+            if (!ListFindNoCase($wheelsStruct().existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase($wheelsStruct().nonExistingObjectFiles, loc.fullObjectPath))
             {
                 if (FileExists(ExpandPath("#loc.fullObjectPath#.cfc")))
                     loc.objectFileExists = true;
-                if (application.wheels.cacheFileChecking)
+                if ($wheelsStruct().cacheFileChecking)
                 {
                     if (loc.objectFileExists)
-                        application.wheels.existingObjectFiles = ListAppend(application.wheels.existingObjectFiles, loc.fullObjectPath);
+                        $wheelsStruct().existingObjectFiles = ListAppend($wheelsStruct().existingObjectFiles, loc.fullObjectPath);
                     else
-                        application.wheels.nonExistingObjectFiles = ListAppend(application.wheels.nonExistingObjectFiles, loc.fullObjectPath);
+                        $wheelsStruct().nonExistingObjectFiles = ListAppend($wheelsStruct().nonExistingObjectFiles, loc.fullObjectPath);
                 }
             }
-            if (ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
+            if (ListFindNoCase($wheelsStruct().existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
                 loc.returnValue = arguments.name;
             else
                 loc.returnValue = capitalize(arguments.type);
         </cfscript>
         <cfreturn loc.returnValue>
     </cffunction>
-    
+
 	<cffunction name="$generateRenderWithTemplatePath" access="public" output="false" returntype="string" hint="">
 		<cfargument name="controller" type="string" required="true">
 		<cfargument name="action" type="string" required="true">
@@ -685,12 +696,12 @@
 		<cfargument name="contentType" type="string" required="true">
 		<cfscript>
 			var templateName = "";
-			
+
 			if (!Len(arguments.template))
 				templateName = "/" & Replace(arguments.controller, ".", "/") & "/" & arguments.action;
 			else
 				templateName = arguments.template;
-				
+
 			if (Len(arguments.contentType))
 				templateName = templateName & "." & arguments.contentType;
 		</cfscript>
