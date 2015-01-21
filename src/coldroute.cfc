@@ -7,15 +7,15 @@
 			this.version = "1.1,1.1.1,1.1.2,1.1.3,1.1.4,1.1.5,1.1.6,1.1.7";
 			
 			// get cfwheels plugin prefix
-			loc.prefix = ListChangeDelims(application.wheels.webPath & application.wheels.pluginPath, ".", "/");
+			loc.prefix = ListChangeDelims(application[$wheelsKey()].webPath & application[$wheelsKey()].pluginPath, ".", "/");
 			
 			// initialize coldroute mapper
-			application.wheels.coldroute = CreateObject("component", "#loc.prefix#.coldroute.lib.Mapper").init();
+			application[$wheelsKey()].coldroute = CreateObject("component", "#loc.prefix#.coldroute.lib.Mapper").init();
 			
 			// set wheels setting for resource controller naming
 			// NOTE: options are singular, plural, or name
-			if (NOT StructKeyExists(application.wheels, "resourceControllerNaming"))
-				application.wheels.resourceControllerNaming = "plural";
+			if (NOT StructKeyExists(application[$wheelsKey()], "resourceControllerNaming"))
+				application[$wheelsKey()].resourceControllerNaming = "plural";
 			
 			return this;
 		</cfscript>
@@ -24,7 +24,7 @@
 	<cffunction name="drawRoutes" mixin="application" returntype="struct" output="false" access="public" hint="Start drawing routes">
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
 		<cfargument name="methods" type="boolean" default="#arguments.restful#" hint="Pass 'true' to enable routes distinguished by HTTP method" />
-		<cfreturn application.wheels.coldroute.draw(argumentCollection=arguments) />
+		<cfreturn application[$wheelsKey()].coldroute.draw(argumentCollection=arguments) />
 	</cffunction>
 	
 	<cffunction name="toParam" mixin="model" returntype="any" access="public" output="false" hint="Turn model object into key acceptable for use in URL. Can be overridden per model.">
@@ -89,12 +89,12 @@
 				return coreStartFormTag(argumentCollection=arguments);
 			
 			// throw a nice wheels error if the developer passes in a route that was not generated
-			if (application.wheels.showErrorInformation && !StructKeyExists(application.wheels.namedRoutePositions, arguments.route))
+			if (application[$wheelsKey()].showErrorInformation && !StructKeyExists(application[$wheelsKey()].namedRoutePositions, arguments.route))
 				$throw(type="Wheels", message="Route Not Found", extendedInfo="The route specified `#arguments.route#` does not exist!");
 			
 			// check to see if the route specified has a method to match the one passed in
-			for (loc.position in ListToArray(application.wheels.namedRoutePositions[arguments.route]))
-				if (StructKeyExists(application.wheels.routes[loc.position], "methods") && ListFindNoCase(application.wheels.routes[loc.position].methods, arguments.method))
+			for (loc.position in ListToArray(application[$wheelsKey()].namedRoutePositions[arguments.route]))
+				if (StructKeyExists(application[$wheelsKey()].routes[loc.position], "methods") && ListFindNoCase(application[$wheelsKey()].routes[loc.position].methods, arguments.method))
 					loc.routeAndMethodMatch = true;
 			
 			// if we don't have a match, just return the output
@@ -126,7 +126,7 @@
 		<cfargument name="host" type="string" required="false" hint="Set this to override the current host.">
 		<cfargument name="protocol" type="string" required="false" hint="Set this to override the current protocol.">
 		<cfargument name="port" type="numeric" required="false" hint="Set this to override the current port number.">
-		<cfargument name="$URLRewriting" type="string" required="false" default="#application.wheels.URLRewriting#">
+		<cfargument name="$URLRewriting" type="string" required="false" default="#application[$wheelsKey()].URLRewriting#">
 		<cfscript>
 			var loc = {};
 			loc.coreVariables = "controller,action,key,format";
@@ -135,7 +135,7 @@
 				return loc.returnValue;
 				
 			// error if host or protocol are passed with onlyPath=true
-			if (application.wheels.showErrorInformation AND arguments.onlyPath AND (Len(arguments.host) OR Len(arguments.protocol)))
+			if (application[$wheelsKey()].showErrorInformation AND arguments.onlyPath AND (Len(arguments.host) OR Len(arguments.protocol)))
 				$throw(type="Wheels.IncorrectArguments", message="Can't use the `host` or `protocol` arguments when `onlyPath` is `true`.", extendedInfo="Set `onlyPath` to `false` so that `linkTo` will create absolute URLs and thus allowing you to set the `host` and `protocol` on the link.");
 			
 			// Look up actual route paths instead of providing default Wheels path generation
@@ -154,13 +154,13 @@
 				} else {
 					
 					// loop over routes to find matching one
-					loc.iEnd = ArrayLen(application.wheels.routes);
+					loc.iEnd = ArrayLen(application[$wheelsKey()].routes);
 					for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-						loc.curr = application.wheels.routes[loc.i];
+						loc.curr = application[$wheelsKey()].routes[loc.i];
 						
 						// if found, cache the route name, set up arguments, and break from loop
 						if (StructKeyExists(loc.curr, "controller") AND loc.curr.controller EQ arguments.controller AND StructKeyExists(loc.curr, "action") AND loc.curr.action EQ arguments.action) {
-							arguments.route = application.wheels.routes[loc.i].name;
+							arguments.route = application[$wheelsKey()].routes[loc.i].name;
 							loc.cache[loc.key] = arguments.route;
 							break;
 						}
@@ -225,7 +225,7 @@
 				// transform value before setting it in pattern
 				if (loc.property EQ "controller" OR loc.property EQ "action")
 					loc.value = hyphenize(loc.value);
-				else if (application.wheels.obfuscateUrls)
+				else if (application[$wheelsKey()].obfuscateUrls)
 					loc.value = obfuscateParam(loc.value);
 				
 				loc.returnValue = REReplace(loc.returnValue, loc.reg, loc.value);
@@ -242,10 +242,10 @@
 	
 			// apply needed path prefix depending on rewrite style
 			if (arguments.$URLRewriting EQ "Partial")
-				loc.returnValue = application.wheels.rewriteFile & loc.returnValue;
+				loc.returnValue = application[$wheelsKey()].rewriteFile & loc.returnValue;
 			else if (arguments.$URLRewriting EQ "Off")
 				loc.returnValue = "index.cfm" & loc.returnValue;
-			loc.returnValue = application.wheels.webPath & loc.returnValue;
+			loc.returnValue = application[$wheelsKey()].webPath & loc.returnValue;
 			loc.returnValue = Replace(loc.returnValue, "//", "/", "ALL");
 	
 			// prepend necessary url information
@@ -300,9 +300,9 @@
 			var loc = {};
 
 			// loop over wheels routes
-			loc.iEnd = ArrayLen(application.wheels.routes);
+			loc.iEnd = ArrayLen(application[$wheelsKey()].routes);
 			for (loc.i = 1; loc.i LTE loc.iEnd; loc.i++) {
-				loc.route = application.wheels.routes[loc.i];
+				loc.route = application[$wheelsKey()].routes[loc.i];
 				
 				// if method doesn't match, skip this route
 				if (StructKeyExists(loc.route, "methods") AND NOT ListFindNoCase(loc.route.methods, arguments.requestMethod))
@@ -310,11 +310,11 @@
 				
 				// make sure route has been converted to regex
 				if (NOT StructKeyExists(loc.route, "regex"))
-					loc.route.regex = application.wheels.coldroute.patternToRegex(loc.route.pattern);
+					loc.route.regex = application[$wheelsKey()].coldroute.patternToRegex(loc.route.pattern);
 				
 				// if route matches regular expression, set it for return
 				if (REFindNoCase(loc.route.regex, arguments.path) OR (arguments.path EQ "" AND loc.route.pattern EQ "/")) {
-					loc.returnValue = Duplicate(application.wheels.routes[loc.i]);
+					loc.returnValue = Duplicate(application[$wheelsKey()].routes[loc.i]);
 					break;
 				}
 			}
@@ -360,7 +360,7 @@
 	<cffunction name="$registerNamedRouteMethods" mixin="controller" returntype="void" access="public" hint="Filter that sets up named route helper methods">
 		<cfscript>
 			var loc = {};
-			for (loc.key in application.wheels.namedRoutePositions) {
+			for (loc.key in application[$wheelsKey()].namedRoutePositions) {
 				variables[loc.key & "Path"] = $namedRouteMethod;
 				variables[loc.key & "Url"] = $namedRouteMethod;
 			}
@@ -385,8 +385,8 @@
 			}
 			
 			// get the matching route and any required variables
-			if (StructKeyExists(application.wheels.namedRoutePositions, arguments.route)) {
-				loc.routePos = application.wheels.namedRoutePositions[arguments.route];
+			if (StructKeyExists(application[$wheelsKey()].namedRoutePositions, arguments.route)) {
+				loc.routePos = application[$wheelsKey()].namedRoutePositions[arguments.route];
 				
 				// for backwards compatibility, allow loc.routePos to be a list
 				if (IsArray(loc.routePos))
@@ -396,7 +396,7 @@
 				
 				// grab first route found
 				// todo: don't just accept the first route found
-				loc.route = application.wheels.routes[loc.pos];
+				loc.route = application[$wheelsKey()].routes[loc.pos];
 				loc.vars = ListToArray(loc.route.variables);
 			
 				// loop over variables needed for route
@@ -425,7 +425,7 @@
 							
 							// if the passed in object is new, link to the plural REST route instead
 							if (loc.value.isNew()) {
-								if (StructKeyExists(application.wheels.namedRoutePositions, pluralize(arguments.route))) {
+								if (StructKeyExists(application[$wheelsKey()].namedRoutePositions, pluralize(arguments.route))) {
 									arguments.route = pluralize(arguments.route);
 									break;
 								}
@@ -492,20 +492,20 @@
     
             // include controller specific helper files if they exist, cache the file check for performance reasons
             loc.helperFileExists = false;
-            if (!ListFindNoCase(application.wheels.existingHelperFiles, arguments.name) && !ListFindNoCase(application.wheels.nonExistingHelperFiles, arguments.name))
+            if (!ListFindNoCase(application[$wheelsKey()].existingHelperFiles, arguments.name) && !ListFindNoCase(application[$wheelsKey()].nonExistingHelperFiles, arguments.name))
             {
-                if (FileExists(ExpandPath("#application.wheels.viewPath#/#LCase(ListChangeDelims(arguments.name, '/', '.'))#/helpers.cfm")))
+                if (FileExists(ExpandPath("#application[$wheelsKey()].viewPath#/#LCase(ListChangeDelims(arguments.name, '/', '.'))#/helpers.cfm")))
                     loc.helperFileExists = true;
-                if (application.wheels.cacheFileChecking)
+                if (application[$wheelsKey()].cacheFileChecking)
                 {
                     if (loc.helperFileExists)
-                        application.wheels.existingHelperFiles = ListAppend(application.wheels.existingHelperFiles, arguments.name);
+                        application[$wheelsKey()].existingHelperFiles = ListAppend(application[$wheelsKey()].existingHelperFiles, arguments.name);
                     else
-                        application.wheels.nonExistingHelperFiles = ListAppend(application.wheels.nonExistingHelperFiles, arguments.name);
+                        application[$wheelsKey()].nonExistingHelperFiles = ListAppend(application[$wheelsKey()].nonExistingHelperFiles, arguments.name);
                 }
             }
-            if (ListFindNoCase(application.wheels.existingHelperFiles, arguments.name) || loc.helperFileExists)
-                $include(template="#application.wheels.viewPath#/#ListChangeDelims(arguments.name, '/', '.')#/helpers.cfm");
+            if (ListFindNoCase(application[$wheelsKey()].existingHelperFiles, arguments.name) || loc.helperFileExists)
+                $include(template="#application[$wheelsKey()].viewPath#/#ListChangeDelims(arguments.name, '/', '.')#/helpers.cfm");
     
             loc.executeArgs = {};
             loc.executeArgs.name = arguments.name;
@@ -521,7 +521,7 @@
         <cfscript>
             var loc = {};
     
-            if (Left(arguments.action, 1) == "$" || ListFindNoCase(application.wheels.protectedControllerMethods, arguments.action))
+            if (Left(arguments.action, 1) == "$" || ListFindNoCase(application[$wheelsKey()].protectedControllerMethods, arguments.action))
                 $throw(type="Wheels.ActionNotAllowed", message="You are not allowed to execute the `#arguments.action#` method as an action.", extendedInfo="Make sure your action does not have the same name as any of the built-in Wheels functions.");
     
             if (StructKeyExists(this, arguments.action) && IsCustomFunction(this[arguments.action]))
@@ -544,20 +544,20 @@
                 }
                 catch(Any e)
                 {
-                    if (FileExists(ExpandPath("#application.wheels.viewPath#/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#/#LCase(arguments.action)#.cfm")))
+                    if (FileExists(ExpandPath("#application[$wheelsKey()].viewPath#/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#/#LCase(arguments.action)#.cfm")))
                     {
                         $throw(object=e);
                     }
                     else
                     {
-                        if (application.wheels.showErrorInformation)
+                        if (application[$wheelsKey()].showErrorInformation)
                         {
                             $throw(type="Wheels.ViewNotFound", message="Could not find the view page for the `#arguments.action#` action in the `#variables.$class.name#` controller.", extendedInfo="Create a file named `#LCase(arguments.action)#.cfm` in the `views/#LCase(ListChangeDelims(variables.$class.name, '/', '.'))#` directory (create the directory as well if it doesn't already exist).");
                         }
                         else
                         {
                             $header(statusCode="404", statusText="Not Found");
-                            $includeAndOutput(template="#application.wheels.eventPath#/onmissingtemplate.cfm");
+                            $includeAndOutput(template="#application[$wheelsKey()].eventPath#/onmissingtemplate.cfm");
                             $abort();
                         }
                     }
@@ -584,7 +584,7 @@
         <cfargument name="$name" type="any" required="true">
         <cfargument name="$type" type="any" required="true">
         <cfargument name="$controllerName" type="string" required="false" default="#variables.params.controller#" />
-        <cfargument name="$baseTemplatePath" type="string" required="false" default="#application.wheels.viewPath#" />
+        <cfargument name="$baseTemplatePath" type="string" required="false" default="#application[$wheelsKey()].viewPath#" />
         <cfargument name="$prependWithUnderscore" type="boolean" required="false" default="true">
         <cfscript>
             var loc = {};
@@ -658,19 +658,19 @@
             // we are going to store the full controller path in the existing / non-existing lists so we can have controllers in multiple places
             loc.fullObjectPath = arguments.objectPath & "/" & ListChangeDelims(arguments.name, '/', '.');
     
-            if (!ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase(application.wheels.nonExistingObjectFiles, loc.fullObjectPath))
+            if (!ListFindNoCase(application[$wheelsKey()].existingObjectFiles, loc.fullObjectPath) && !ListFindNoCase(application[$wheelsKey()].nonExistingObjectFiles, loc.fullObjectPath))
             {
                 if (FileExists(ExpandPath("#loc.fullObjectPath#.cfc")))
                     loc.objectFileExists = true;
-                if (application.wheels.cacheFileChecking)
+                if (application[$wheelsKey()].cacheFileChecking)
                 {
                     if (loc.objectFileExists)
-                        application.wheels.existingObjectFiles = ListAppend(application.wheels.existingObjectFiles, loc.fullObjectPath);
+                        application[$wheelsKey()].existingObjectFiles = ListAppend(application[$wheelsKey()].existingObjectFiles, loc.fullObjectPath);
                     else
-                        application.wheels.nonExistingObjectFiles = ListAppend(application.wheels.nonExistingObjectFiles, loc.fullObjectPath);
+                        application[$wheelsKey()].nonExistingObjectFiles = ListAppend(application[$wheelsKey()].nonExistingObjectFiles, loc.fullObjectPath);
                 }
             }
-            if (ListFindNoCase(application.wheels.existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
+            if (ListFindNoCase(application[$wheelsKey()].existingObjectFiles, loc.fullObjectPath) || loc.objectFileExists)
                 loc.returnValue = arguments.name;
             else
                 loc.returnValue = capitalize(arguments.type);
@@ -695,5 +695,17 @@
 				templateName = templateName & "." & arguments.contentType;
 		</cfscript>
 		<cfreturn templateName />
+	</cffunction>
+
+	<cffunction name="$wheelsKey" returntype="string" access="public" output="false">
+		<cfscript>
+		var loc = {};
+		loc.returnValue = "wheels";
+		if (StructKeyExists(application, "$wheels"))
+		{
+			loc.returnValue = "$wheels";
+		}
+		</cfscript>
+		<cfreturn loc.returnValue>
 	</cffunction>
 </cfcomponent>

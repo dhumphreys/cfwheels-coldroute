@@ -1,5 +1,5 @@
 <cfcomponent output="false">
-	<cfinclude template="#application.wheels.webPath#/wheels/global/functions.cfm" />
+	<cfinclude template="#application[$wheelsKey()].webPath#/wheels/global/functions.cfm" />
 	
 	<cffunction name="init" returntype="struct" access="public">
 		<cfargument name="restful" type="boolean" default="true" hint="Pass 'true' to enable RESTful routes" />
@@ -453,7 +453,7 @@
 			} else {
 				
 				// set controller name based on naming preference
-				switch (application.wheels.resourceControllerNaming) {
+				switch (application[$wheelsKey()].resourceControllerNaming) {
 					case "name": loc.args.controller = arguments.name; break;
 					case "singular": loc.args.controller = arguments.singular; break;
 					default: loc.args.controller = arguments.plural;
@@ -572,7 +572,7 @@
 			arguments.variables = stripRouteVariables(arguments.pattern);
 				
 			// add route to cfwheels
-			ArrayAppend(application.wheels.routes, arguments);
+			ArrayAppend(application[$wheelsKey()].routes, arguments);
 		</cfscript>
 	</cffunction>
 	
@@ -626,5 +626,17 @@
 			return $shallowPath() & "/" & path;
 		</cfscript>
 		<cfreturn iif(StructKeyExists(scopeStack[1], "shallowPath"), "scopeStack[1].shallowPath", DE("")) />
+	</cffunction>
+
+	<cffunction name="$wheelsKey" returntype="string" access="private" output="false">
+		<cfscript>
+		var loc = {};
+		loc.returnValue = "wheels";
+		if (StructKeyExists(application, "$wheels"))
+		{
+			loc.returnValue = "$wheels";
+		}
+		</cfscript>
+		<cfreturn loc.returnValue>
 	</cffunction>
 </cfcomponent>
