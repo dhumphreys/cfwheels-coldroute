@@ -224,7 +224,8 @@
 				// loop over all possible patterns
 				while (loc.pattern NEQ "") {
 					
-					// add current route to wheels
+					// add current route to wheels, removing duplicate argument for CF8 and Railo compatibility
+					StructDelete(arguments, "pattern");
 					$addRoute(argumentCollection=arguments, pattern=Replace(loc.pattern, "(", "", "ALL"));
 					
 					// remove last optional segment
