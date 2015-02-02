@@ -366,6 +366,7 @@
 		<cfargument name="shallowPath" type="string" required="false" hint="Shallow path prefix" />
 		<cfargument name="shallowName" type="string" required="false" hint="Shallow name prefix" />
 		<cfargument name="constraints" type="struct" required="false" hint="Variable patterns to use for matching" />
+		<cfargument name="keyname" type="string" required="false" hint="Name of the key" default="key"/>
 		<cfargument name="$call" type="string" default="resource" />
 		<cfargument name="$plural" type="boolean" default="false" />
 		<cfscript>
@@ -401,7 +402,7 @@
 				// set collection and scoped paths
 				loc.args.collection = arguments.plural;
 				loc.args.nestedPath = "#arguments.path#/[#arguments.singular#Key]";
-				loc.args.memberPath = "#arguments.path#/[key]";
+				loc.args.memberPath = "#arguments.path#/[#arguments.keyname#]";
 				
 				// for uncountable plurals, append "Index"
 				if (arguments.singular EQ arguments.plural)
